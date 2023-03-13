@@ -4,40 +4,52 @@
 using namespace std;
 using namespace cv;
 
+Mat getMyColorImage();
 Mat getGrayScaleImage(const Mat& image);
 Mat getBinaryImage(const Mat& image);
-Mat getIndexColorImage(const Mat& image, Mat& lookUpTable);
+Mat getIndexColorImage(const Mat& image);
 
 int main()
 {
 	const string SOURCE_FOLDER = "./Image/Source/";
 	const string GRAYSCALE_FOLDER = "./Image/Grayscale/";
+	const string BINARY_FOLDER = "./Image/Binary/";
 	const string INDEX_COLOR_FOLDER = "./Image/Index color/";
 	const string RESIZE_FOLDER = "./Image/Resize/";
 	const string RESIZE_INTERPOLATION_FOLDER = "./Image/Resize(interpolation)/";
 	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	Mat image = imread(SOURCE_FOLDER + "test.png");
-	imshow("Source", image);
-	Mat gray = getGrayScaleImage(image);
-	imshow("Gray", gray);
-	Mat binary = getBinaryImage(image);
-	imshow("Binary", binary);
-	Mat lookUpTable = Mat(16, 16, CV_8UC3);
-	Mat indexColor = getIndexColorImage(image, lookUpTable);
-	imshow("Index-Color", indexColor);
-	imshow("LookUpTable", lookUpTable);
-	//Mat indexColor = getIndexColorImage(image, lookUpTable);
-	//imshow("Binary", binary);
-	
-	//grayScaleImage(image, imageList.at(0), true);
-	//for (string& imageName : imageList) {
-	//	Mat image = imread(SOURCE_FOLDER + imageName);
-	//	Mat gray = grayScaleImage(image);
-	//	imwrite("./Image/Grayscale/" + imageName, gray);
-	//}
+	//vector<string> imageList = { "Lena.png" };
+	Mat colorMap = getMyColorImage();
+	for (string& imageName : imageList) {
+		Mat image = imread(SOURCE_FOLDER + imageName);
+		imshow("Source", image);
+		Mat gray = getGrayScaleImage(image);
+		imshow("Gray", gray);
+		imwrite(GRAYSCALE_FOLDER + imageName, gray);
+		Mat binary = getBinaryImage(image);
+		imshow("Binary", binary);
+		imwrite(BINARY_FOLDER + imageName, binary);
+		Mat indexColor = getIndexColorImage(image);
+		imshow("Index-Color", indexColor);
+		imwrite(INDEX_COLOR_FOLDER + imageName, indexColor);
+	}
 	waitKey();
 	destroyAllWindows();
 	return 0;
+}
+
+Mat getMyColorImage() {
+	Mat myColorMap = Mat(16, 16, CV_8UC3);
+	uchar* p = myColorMap.ptr<uchar>(0);
+	for (int i = 0; i < 256; i += 51) {
+		for (int j = 0; j < 256; j += 51) {
+			for (int k = 0; k < 256; k += 51) {
+				*p++ = i, *p++ = j, *p++ = k;
+			}
+		}
+	}
+	imwrite("./Image/myColorMap.png", myColorMap);
+	return myColorMap;
 }
 
 Mat getGrayScaleImage(const Mat& image) {
@@ -68,40 +80,18 @@ Mat getBinaryImage(const Mat& image) {
 	return binaryImage;
 }
 
-Mat getIndexColorImage(const Mat& image, Mat& lookUpTable) {
-	Mat resultImage = Mat(image.rows, image.cols, CV_8UC1);
+Mat getIndexColorImage(const Mat& image) {
+	Mat resultImage = Mat(image.rows, image.cols, CV_8UC3);
 	const uchar* imagePtr = image.ptr<uchar>(0);
 	uchar* resultPtr = resultImage.ptr<uchar>(0);
-	int pixels = image.rows * image.cols;
-	lookUpTable.at<Vec3b>(0, 0) = image.at<Vec3b>(0, 0);
-	int LUTPixels = 1;
+	int pixels = image.rows * image.cols * image.channels();
 	for (int pixel = 0; pixel < pixels; pixel++) {
-		uchar blue = *imagePtr++, green = *imagePtr++, red = *imagePtr++;
-		//cout << pixel << " : " << LUTPixels << " | " << (int)blue << "," << (int)green << "," << (int)red << endl;
-		uchar* lookUpPtr = lookUpTable.ptr<uchar>(0);
-		bool IsAtLUT = false;
-		for (int LUTPixel = 0; LUTPixel < LUTPixels; LUTPixel++) {
-			uchar LUTBlue = *lookUpPtr++, LUTGreen = *lookUpPtr++, LUTRed = *lookUpPtr++;
-			if (blue == LUTBlue && green == LUTGreen && red == LUTRed) {
-				*resultPtr = LUTPixel;
-				//cout << pixel << " : found " << LUTPixels << " | " << (int)LUTBlue << "," << (int)LUTGreen << "," << (int)LUTRed << endl;
-				IsAtLUT = true;
-			}
-		}
-		if (!IsAtLUT) {
-			//cout << "[!] Not in LUT" << endl;
-			LUTPixels+=1;
-			if (LUTPixels == 256) {
-				cout << "LUT up to 256 colors" << endl;
-				return resultImage;
-			}
-			lookUpTable.at<Vec3b>(LUTPixels / 16, LUTPixels % 16)[0] = blue;
-			lookUpTable.at<Vec3b>(LUTPixels / 16, LUTPixels % 16)[1] = green;
-			lookUpTable.at<Vec3b>(LUTPixels / 16, LUTPixels % 16)[2] = red;
-			
-			*resultPtr = LUTPixels;
-		}
+		int remain = *imagePtr % 51;
+		*resultPtr = *imagePtr - remain;
+		if (remain >= 25)
+			*resultPtr += 51;
 		resultPtr++;
+		imagePtr++;
 	}
 	return resultImage;
 }
