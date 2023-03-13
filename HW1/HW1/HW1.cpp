@@ -16,14 +16,16 @@ int main()
 	const string RESIZE_FOLDER = "./Image/Resize/";
 	const string RESIZE_INTERPOLATION_FOLDER = "./Image/Resize(interpolation)/";
 	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	Mat image = imread(SOURCE_FOLDER + imageList.at(0));
+	Mat image = imread(SOURCE_FOLDER + "test.png");
 	imshow("Source", image);
 	Mat gray = getGrayScaleImage(image);
 	imshow("Gray", gray);
 	Mat binary = getBinaryImage(image);
 	imshow("Binary", binary);
 	Mat lookUpTable = Mat(16, 16, CV_8UC3);
-	getIndexColorImage(image, lookUpTable);
+	Mat indexColor = getIndexColorImage(image, lookUpTable);
+	imshow("Index-Color", indexColor);
+	imshow("LookUpTable", lookUpTable);
 	//Mat indexColor = getIndexColorImage(image, lookUpTable);
 	//imshow("Binary", binary);
 	
@@ -72,27 +74,34 @@ Mat getIndexColorImage(const Mat& image, Mat& lookUpTable) {
 	uchar* resultPtr = resultImage.ptr<uchar>(0);
 	int pixels = image.rows * image.cols;
 	lookUpTable.at<Vec3b>(0, 0) = image.at<Vec3b>(0, 0);
-	cout << (int)lookUpTable.at<Vec3b>(0, 0)[0] << "," << (int)lookUpTable.at<Vec3b>(0,0)[1] << "," << (int)lookUpTable.at<Vec3b>(0, 0)[2] << endl;
-	cout << (int)image.at<Vec3b>(0, 0)[0] << "," << (int)image.at<Vec3b>(0, 0)[1] << "," << (int)image.at<Vec3b>(0, 0)[2] << endl;
-	return resultImage;
 	int LUTPixels = 1;
 	for (int pixel = 0; pixel < pixels; pixel++) {
 		uchar blue = *imagePtr++, green = *imagePtr++, red = *imagePtr++;
+		//cout << pixel << " : " << LUTPixels << " | " << (int)blue << "," << (int)green << "," << (int)red << endl;
 		uchar* lookUpPtr = lookUpTable.ptr<uchar>(0);
 		bool IsAtLUT = false;
 		for (int LUTPixel = 0; LUTPixel < LUTPixels; LUTPixel++) {
 			uchar LUTBlue = *lookUpPtr++, LUTGreen = *lookUpPtr++, LUTRed = *lookUpPtr++;
 			if (blue == LUTBlue && green == LUTGreen && red == LUTRed) {
 				*resultPtr = LUTPixel;
+				//cout << pixel << " : found " << LUTPixels << " | " << (int)LUTBlue << "," << (int)LUTGreen << "," << (int)LUTRed << endl;
+				IsAtLUT = true;
 			}
-
 		}
 		if (!IsAtLUT) {
-			Vec3b* indexColorPixel = &lookUpTable.at<Vec3b>(pixel / 16, pixel % 16);
-			indexColorPixel[0] = blue;
-			indexColorPixel[1] = green;
-			indexColorPixel[2] = red;
+			//cout << "[!] Not in LUT" << endl;
+			LUTPixels+=1;
+			if (LUTPixels == 256) {
+				cout << "LUT up to 256 colors" << endl;
+				return resultImage;
+			}
+			lookUpTable.at<Vec3b>(LUTPixels / 16, LUTPixels % 16)[0] = blue;
+			lookUpTable.at<Vec3b>(LUTPixels / 16, LUTPixels % 16)[1] = green;
+			lookUpTable.at<Vec3b>(LUTPixels / 16, LUTPixels % 16)[2] = red;
+			
+			*resultPtr = LUTPixels;
 		}
+		resultPtr++;
 	}
 	return resultImage;
 }
