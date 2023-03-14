@@ -112,6 +112,9 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap) {
 			for (int col = 0; col < image.cols; col++) {
 				const Vec3b originPixel = image.at<Vec3b>(row, col);
 				indexColorImage.at<Vec3b>(row, col) = getColorFromMap(colorMap, originPixel, threshold, colorMapPixels);
+				if (colorMapPixels == 256) {
+					
+				}
 			}
 		}
 	}
