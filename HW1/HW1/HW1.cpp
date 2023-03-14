@@ -9,7 +9,7 @@ Mat getGrayScaleImage(const Mat& image);
 Mat getBinaryImage(const Mat& image);
 
 Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels);
-Mat getIndexColorImage(const Mat& image, Mat& colorMap);
+Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshould);
 
 int main()
 {
@@ -28,11 +28,11 @@ int main()
 		imshow("Binary", binary);
 		imwrite(folderList.at(2) + imageName, binary);*/
 		Mat myColorMap;
-		Mat indexColor2 = getIndexColorImage(image, myColorMap);
+		Mat indexColor2 = getIndexColorImage(image, myColorMap, 20);
 		imshow("Index-Color-Limit", indexColor2);
 		imshow("Color-Map-Limit", myColorMap);
-		imwrite(folderList.at(3) + "2_" + imageName, indexColor2);
-		imwrite(folderList.at(3) + "2_color_map_" + imageName, myColorMap);
+		imwrite(folderList.at(3) + imageName, indexColor2);
+		imwrite(folderList.at(3) + "color_map_" + imageName, myColorMap);
 	}
 	waitKey();
 	destroyAllWindows();
@@ -80,41 +80,38 @@ Mat getBinaryImage(const Mat& image) {
 }
 
 Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels) {
-	Vec3d color = bgr;
+	uchar sourceBlue = bgr[0], sourceGreen = bgr[1], sourceRed = bgr[2];
 	uchar* colorMapPtr = colorMap.ptr<uchar>(0);
 	bool isInColorMap = false;
 	for (int i = 0; i < colorPixels; i++) {
-		int colorGap = sqrt(pow((colorMapPtr[0] - bgr[0]), 2) + pow((colorMapPtr[1] - bgr[1]), 2) + pow((colorMapPtr[2] - bgr[2]), 2));
-		if (colorGap < threshould) {
+		uchar colorMapBlue = *colorMapPtr++, colorMapGreen = *colorMapPtr++, colorMapRed = *colorMapPtr++;
+		int colorGap = sqrt(pow((colorMapBlue - sourceBlue), 2) + pow((colorMapGreen - sourceGreen), 2) + pow((colorMapRed - sourceRed), 2));
+		if (colorGap <= threshould) {
 			isInColorMap = true;
 			break;
 		}
-		colorMapPtr += 3;
 	}
 	if (!isInColorMap) {
-		colorMapPtr[0] = bgr[0];
-		colorMapPtr[1] = bgr[1];
-		colorMapPtr[2] = bgr[2];
+		*colorMapPtr++ = sourceBlue;
+		*colorMapPtr++ = sourceGreen;
+		*colorMapPtr++ = sourceRed;
 		colorPixels++;
 	}
-	return Vec3b(colorMapPtr[0], colorMapPtr[1], colorMapPtr[2]);
+	return Vec3b(*(colorMapPtr - 3), *(colorMapPtr - 2), *(colorMapPtr - 1));
 }
 
-Mat getIndexColorImage(const Mat& image, Mat& colorMap) {
+Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshold) {
 	colorMap = Mat(16, 16, CV_8UC3);
 	Mat indexColorImage = Mat(image.rows, image.cols, CV_8UC3);
-	int threshold = 30;
-	int colorMapPixels = 1;
+	int colorMapSize = 1;
 	colorMap.at<Vec3b>(0, 0) = image.at<Vec3b>(0, 0);
-	bool IsMaximumColorMap = false;
-	while (!IsMaximumColorMap) {
-		for (int row = 0; row < image.rows; row++) {
-			for (int col = 0; col < image.cols; col++) {
-				const Vec3b originPixel = image.at<Vec3b>(row, col);
-				indexColorImage.at<Vec3b>(row, col) = getColorFromMap(colorMap, originPixel, threshold, colorMapPixels);
-				if (colorMapPixels == 256) {
-					
-				}
+	for (int row = 0; row < image.rows; row++) {
+		for (int col = 0; col < image.cols; col++) {
+			const Vec3b originPixel = image.at<Vec3b>(row, col);
+			indexColorImage.at<Vec3b>(row, col) = getColorFromMap(colorMap, originPixel, threshold, colorMapSize);
+			if (colorMapSize > 256) {
+				cout << "Threshold too low, please set higher threshold." << endl;
+				return indexColorImage;
 			}
 		}
 	}
@@ -124,7 +121,6 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap) {
 /*
 Mat getMyColorMap();
 Mat getIndexColorImage(const Mat& image);
-
 Mat getMyColorMap() {
 	Mat myColorMap = Mat(16, 16, CV_8UC3);
 	uchar* p = myColorMap.ptr<uchar>(0);
@@ -139,7 +135,6 @@ Mat getMyColorMap() {
 	imwrite("./Image/myColorMap.png", myColorMap);
 	return myColorMap;
 }
-
 Mat getIndexColorImage(const Mat& image) {
 	Mat indexColorImage = Mat(image.rows, image.cols, CV_8UC3);
 	int nCols = image.channels() * image.cols;
