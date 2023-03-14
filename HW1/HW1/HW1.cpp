@@ -7,33 +7,34 @@ using namespace cv;
 void prepareFolder(vector<string> folderList);
 Mat getGrayScaleImage(const Mat& image);
 Mat getBinaryImage(const Mat& image);
-
 Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels);
 Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshould);
 
 int main()
 {
+	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "./Image/Source/", "./Image/Grayscale/", "./Image/Binary/", "./Image/Index color/", "./Image/Resize/", "./Image/Resize(interpolation)/" };
-	//vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	vector<string> imageList = { "House512.png" };
+	vector<int> thresholdList = { 14, 20, 13, 15, 25, 21 };
+	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
+	//vector<string> imageList = { "Peppers.png" };
 	prepareFolder(folderList);
-
-	for (string& imageName : imageList) {
-		Mat image = imread(folderList.at(0) + imageName);
-		imshow("Source", image);
-		/*Mat gray = getGrayScaleImage(image);
-		imshow("Gray", gray);
-		imwrite(folderList.at(1) + imageName, gray);
+	for (int i = 0; i < imageList.size(); i++) {
+		Mat image = imread(folderList.at(0) + imageList.at(i));
+		//imshow("Source", image);
+		Mat gray = getGrayScaleImage(image);
+		//imshow("Gray", gray);
+		imwrite(folderList.at(1) + imageList.at(i), gray);
 		Mat binary = getBinaryImage(gray);
-		imshow("Binary", binary);
-		imwrite(folderList.at(2) + imageName, binary);*/
+		//imshow("Binary", binary);
+		imwrite(folderList.at(2) + imageList.at(i), binary);
 		Mat myColorMap;
-		Mat indexColor2 = getIndexColorImage(image, myColorMap, 20);
-		imshow("Index-Color-Limit", indexColor2);
-		imshow("Color-Map-Limit", myColorMap);
-		imwrite(folderList.at(3) + imageName, indexColor2);
-		imwrite(folderList.at(3) + "color_map_" + imageName, myColorMap);
+		Mat indexColor2 = getIndexColorImage(image, myColorMap, thresholdList.at(i));
+		//imshow("Index-Color-Limit", indexColor2);
+		imwrite(folderList.at(3) + imageList.at(i), indexColor2);
+		//imshow("Color-Map-Limit", myColorMap);
+		imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
 	}
+	cout << "[Main] All image processing complete." << endl;
 	waitKey();
 	destroyAllWindows();
 	return 0;
@@ -42,7 +43,7 @@ int main()
 void prepareFolder(vector<string> folderList) {
 	for (string& folder : folderList) {
 		if (_mkdir(folder.c_str()) != 0) {
-			cerr << strerror(errno) << ", file path " << folder.c_str() << endl;
+			cerr << "[Prepare folder] " << strerror(errno) << ", it won't cover (" << folder << ")" << endl;
 		}
 	}
 }
@@ -110,7 +111,7 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshold) {
 			const Vec3b originPixel = image.at<Vec3b>(row, col);
 			indexColorImage.at<Vec3b>(row, col) = getColorFromMap(colorMap, originPixel, threshold, colorMapSize);
 			if (colorMapSize > 256) {
-				cout << "Threshold too low, please set higher threshold." << endl;
+				cerr << "[Index color image] Threshold too low, the image process incomplete, please set higher threshold." << endl;
 				return indexColorImage;
 			}
 		}
