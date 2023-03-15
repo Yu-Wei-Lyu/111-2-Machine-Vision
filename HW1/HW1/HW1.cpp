@@ -9,30 +9,33 @@ Mat getGrayScaleImage(const Mat& image);
 Mat getBinaryImage(const Mat& image);
 Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels);
 Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshould);
+Mat getDoubleSizeImage(const Mat& image);
 
 int main()
 {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "./Image/Source/", "./Image/Grayscale/", "./Image/Binary/", "./Image/Index color/", "./Image/Resize/", "./Image/Resize(interpolation)/" };
 	vector<int> thresholdList = { 14, 20, 13, 15, 25, 21 };
-	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	//vector<string> imageList = { "Peppers.png" };
+	//vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
+	vector<string> imageList = { "Peppers.png" };
 	prepareFolder(folderList);
 	for (int i = 0; i < imageList.size(); i++) {
 		Mat image = imread(folderList.at(0) + imageList.at(i));
-		//imshow("Source", image);
-		Mat gray = getGrayScaleImage(image);
+		imshow("Source", image);
+		//Mat gray = getGrayScaleImage(image);
 		//imshow("Gray", gray);
-		imwrite(folderList.at(1) + imageList.at(i), gray);
-		Mat binary = getBinaryImage(gray);
+		//imwrite(folderList.at(1) + imageList.at(i), gray);
+		//Mat binary = getBinaryImage(gray);
 		//imshow("Binary", binary);
-		imwrite(folderList.at(2) + imageList.at(i), binary);
-		Mat myColorMap;
-		Mat indexColor2 = getIndexColorImage(image, myColorMap, thresholdList.at(i));
+		//imwrite(folderList.at(2) + imageList.at(i), binary);
+		//Mat myColorMap;
+		//Mat indexColor2 = getIndexColorImage(image, myColorMap, 21);
 		//imshow("Index-Color-Limit", indexColor2);
-		imwrite(folderList.at(3) + imageList.at(i), indexColor2);
+		//imwrite(folderList.at(3) + imageList.at(i), indexColor2);
 		//imshow("Color-Map-Limit", myColorMap);
-		imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
+		//imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
+		Mat scaledDoubleImage = getDoubleSizeImage(image);
+		imshow("Scale double size image", scaledDoubleImage);
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
@@ -117,6 +120,29 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshold) {
 		}
 	}
 	return indexColorImage;
+}
+
+Mat getDoubleSizeImage(const Mat& image) {
+	Mat scaledImage = Mat(image.rows * 2, image.cols * 2, CV_8UC3);
+	for (int row = 0; row < image.rows; row++) {
+		const uchar* imagePtr = image.ptr<uchar>(row);
+		uchar* scaledPtr = scaledImage.ptr<uchar>(row * 2);
+		for (int col = 0; col < image.cols; col++) {
+			uchar imageBlue = *imagePtr++, imageGreen = *imagePtr++, imageRed = *imagePtr++;
+			for (int pixelColor = 0; pixelColor < 2; pixelColor++) {
+				*(scaledPtr + pixelColor) = imageBlue;
+				*(scaledPtr + pixelColor + 1) = imageGreen;
+				*(scaledPtr + pixelColor + 2) = imageRed;
+			}
+			for (int pixelColor = 0; pixelColor < 2; pixelColor++) {
+				*(scaledPtr + pixelColor * image.rows) = imageBlue;
+				*(scaledPtr + pixelColor * image.rows + 1) = imageGreen;
+				*(scaledPtr + pixelColor * image.rows + 2) = imageRed;
+			}
+			scaledPtr += 2;
+		}
+	}
+	return scaledImage;
 }
 
 /*
