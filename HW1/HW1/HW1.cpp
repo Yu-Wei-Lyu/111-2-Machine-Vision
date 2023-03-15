@@ -10,18 +10,21 @@ Mat getBinaryImage(const Mat& image);
 Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels);
 Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshould);
 Mat getDoubleSizeImage(const Mat& image);
+Mat getHalfSizeImage(const Mat& image);
+Mat getDoubleSizeRoundImage(const Mat& image);
+Mat getHalfSizeRoundImage(const Mat& image);
 
 int main()
 {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "./Image/Source/", "./Image/Grayscale/", "./Image/Binary/", "./Image/Index color/", "./Image/Resize/", "./Image/Resize(interpolation)/" };
 	vector<int> thresholdList = { 14, 20, 13, 15, 25, 21 };
-	//vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	vector<string> imageList = { "Peppers.png" };
-	prepareFolder(folderList);
+	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
+	//vector<string> imageList = { "Peppers.png" };
+	//prepareFolder(folderList);
 	for (int i = 0; i < imageList.size(); i++) {
 		Mat image = imread(folderList.at(0) + imageList.at(i));
-		imshow("Source", image);
+		imshow("Source " + imageList.at(i), image);
 		//Mat gray = getGrayScaleImage(image);
 		//imshow("Gray", gray);
 		//imwrite(folderList.at(1) + imageList.at(i), gray);
@@ -34,8 +37,15 @@ int main()
 		//imwrite(folderList.at(3) + imageList.at(i), indexColor2);
 		//imshow("Color-Map-Limit", myColorMap);
 		//imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
-		Mat scaledDoubleImage = getDoubleSizeImage(image);
-		imshow("Scale double size image", scaledDoubleImage);
+		//Mat scaledDoubleImage = getDoubleSizeImage(image);
+		//imshow("Scale double size image " + imageList.at(i), scaledDoubleImage);
+		//imwrite(folderList.at(4) + "double_size_" + imageList.at(i), scaledDoubleImage);
+		//Mat scaledDoubleImage = getHalfSizeImage(image);
+		//imshow("Scale half size image " + imageList.at(i), scaledDoubleImage);
+		//imwrite(folderList.at(4) + "half_size_" + imageList.at(i), scaledDoubleImage);
+		Mat scaledDoubleRoundImage = getHalfSizeImage(image);
+		imshow("Scale half size image " + imageList.at(i), scaledDoubleRoundImage);
+		imwrite(folderList.at(4) + "half_size_" + imageList.at(i), scaledDoubleRoundImage);
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
@@ -123,25 +133,49 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshold) {
 }
 
 Mat getDoubleSizeImage(const Mat& image) {
-	Mat scaledImage = Mat(image.rows * 2, image.cols * 2, CV_8UC3);
-	for (int row = 0; row < image.rows; row++) {
-		const uchar* imagePtr = image.ptr<uchar>(row);
-		uchar* scaledPtr = scaledImage.ptr<uchar>(row * 2);
+	int doubleRow = image.rows * 2, doubleCol = image.cols * 2;
+	Mat scaledImage = Mat(doubleRow, doubleCol, CV_8UC3);
+	for (int row = 0; row < doubleRow; row++) {
+		const uchar* imagePtr = image.ptr<uchar>(row / 2);
+		uchar* scaledPtr = scaledImage.ptr<uchar>(row);
 		for (int col = 0; col < image.cols; col++) {
 			uchar imageBlue = *imagePtr++, imageGreen = *imagePtr++, imageRed = *imagePtr++;
 			for (int pixelColor = 0; pixelColor < 2; pixelColor++) {
-				*(scaledPtr + pixelColor) = imageBlue;
-				*(scaledPtr + pixelColor + 1) = imageGreen;
-				*(scaledPtr + pixelColor + 2) = imageRed;
+				*scaledPtr++ = imageBlue;
+				*scaledPtr++ = imageGreen;
+				*scaledPtr++ = imageRed;
 			}
-			for (int pixelColor = 0; pixelColor < 2; pixelColor++) {
-				*(scaledPtr + pixelColor * image.rows) = imageBlue;
-				*(scaledPtr + pixelColor * image.rows + 1) = imageGreen;
-				*(scaledPtr + pixelColor * image.rows + 2) = imageRed;
-			}
-			scaledPtr += 2;
 		}
 	}
+	return scaledImage;
+}
+
+Mat getHalfSizeImage(const Mat& image) {
+	int halfRow = image.rows / 2, halfCol = image.cols / 2;
+	Mat scaledImage = Mat(halfRow, halfCol, CV_8UC3);
+	for (int row = 0; row < halfRow; row++) {
+		const uchar* imagePtr = image.ptr<uchar>(row * 2);
+		uchar* scaledPtr = scaledImage.ptr<uchar>(row);
+		for (int col = 0; col < halfCol; col++) {
+			uchar imageBlue = *imagePtr++, imageGreen = *imagePtr++, imageRed = *imagePtr++;
+			*scaledPtr++ = imageBlue;
+			*scaledPtr++ = imageGreen;
+			*scaledPtr++ = imageRed;
+			imagePtr += 3;
+		}
+	}
+	return scaledImage;
+}
+
+Mat getDoubleSizeRoundImage(const Mat& image) {
+	int doubleRow = image.rows * 2, doubleCol = image.cols * 2;
+	Mat scaledImage = Mat(doubleRow, doubleCol, CV_8UC3);
+	return scaledImage;
+}
+
+Mat getHalfSizeRoundImage(const Mat& image) {
+	int halfRow = image.rows / 2, halfCol = image.cols / 2;
+	Mat scaledImage = Mat(halfRow, halfCol, CV_8UC3);
 	return scaledImage;
 }
 
