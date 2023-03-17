@@ -14,13 +14,56 @@ Mat getHalfSizeImage(const Mat& image);
 Mat getDoubleSizeRoundImage(const Mat& image);
 Mat getHalfSizeRoundImage(const Mat& image);
 
+uchar getBilinearValue(uchar valueClose, uchar valueFar) {
+	return (uchar)(valueClose * (2.0 / 3.0) + valueFar * (1.0 / 3.0));
+}
+
+vector<uchar> getBilinearList(vector<uchar> source) {
+	vector<uchar> result(16, -1);
+	result.at(0) = source.at(0);
+	result.at(3) = source.at(1);
+	result.at(12) = source.at(2);
+	result.at(15) = source.at(3);
+	result.at(1) = getBilinearValue(result.at(0), result.at(3));
+	result.at(2) = getBilinearValue(result.at(3), result.at(1));
+	result.at(13) = getBilinearValue(result.at(12), result.at(15));
+	result.at(14) = getBilinearValue(result.at(15), result.at(12));
+	result.at(4) = getBilinearValue(result.at(0), result.at(12));
+	result.at(5) = getBilinearValue(result.at(1), result.at(13));
+	result.at(6) = getBilinearValue(result.at(2), result.at(14));
+	result.at(7) = getBilinearValue(result.at(3), result.at(15));
+	result.at(8) = getBilinearValue(result.at(12), result.at(0));
+	result.at(9) = getBilinearValue(result.at(13), result.at(1));
+	result.at(10) = getBilinearValue(result.at(14), result.at(2));
+	result.at(11) = getBilinearValue(result.at(15), result.at(3));
+	return result;
+}
+
 int main()
 {
+	//vector<uchar> s{(uchar)129, (uchar)27, (uchar)32, (uchar)254};
+	//vector<uchar> a = getBilinearList(s);
+
+	//for (int i = 0; i < s.size(); i++) {
+	//	cout << (int)s.at(i) << ", ";
+	//	if ((i + 1) % 2 == 0)
+	//		cout << endl;
+	//}
+
+	//cout << "\nconvert to ...\n" << endl;
+
+	//for (int i = 0; i < a.size(); i++) {
+	//	cout << (int)a.at(i) << ", ";
+	//	if ((i + 1) % 4 == 0)
+	//		cout << endl;
+	//}
+	//
+	//return 0;
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "./Image/Source/", "./Image/Grayscale/", "./Image/Binary/", "./Image/Index color/", "./Image/Resize/", "./Image/Resize(interpolation)/" };
 	vector<int> thresholdList = { 14, 20, 13, 15, 25, 21 };
 	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	//vector<string> imageList = { "Peppers.png" };
+	//vector<string> imageList = { "House256.png" };
 	prepareFolder(folderList);
 	for (int i = 0; i < imageList.size(); i++) {
 		Mat image = imread(folderList.at(0) + imageList.at(i));
@@ -37,15 +80,18 @@ int main()
 		//imwrite(folderList.at(3) + imageList.at(i), indexColor2);
 		//imshow("Color-Map-Limit", myColorMap);
 		//imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
-		//Mat scaledDoubleImage = getDoubleSizeImage(image);
-		//imshow("Scale double size image " + imageList.at(i), scaledDoubleImage);
-		//imwrite(folderList.at(4) + "double_size_" + imageList.at(i), scaledDoubleImage);
 		//Mat scaledHalfImage = getHalfSizeImage(image);
 		//imshow("Scale half size image " + imageList.at(i), scaledHalfImage);
 		//imwrite(folderList.at(4) + "half_size_" + imageList.at(i), scaledHalfImage);
-		Mat scaledHalfRoundImage = getHalfSizeRoundImage(image);
-		imshow("Scale half size image (round) " + imageList.at(i), scaledHalfRoundImage);
-		imwrite(folderList.at(5) + "half_size_" + imageList.at(i), scaledHalfRoundImage);
+		//Mat scaledDoubleImage = getDoubleSizeImage(image);
+		//imshow("Scale double size image " + imageList.at(i), scaledDoubleImage);
+		//imwrite(folderList.at(4) + "double_size_" + imageList.at(i), scaledDoubleImage);
+		//Mat scaledHalfRoundImage = getHalfSizeRoundImage(image);
+		//imshow("Scale half size image (round) " + imageList.at(i), scaledHalfRoundImage);
+		//imwrite(folderList.at(5) + "half_size_" + imageList.at(i), scaledHalfRoundImage);
+		Mat scaledDoubleRoundImage = getDoubleSizeRoundImage(image);
+		imshow("Scale double size image (round) " + imageList.at(i), scaledDoubleRoundImage);
+		imwrite(folderList.at(5) + "double_size_" + imageList.at(i), scaledDoubleRoundImage);
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
@@ -170,6 +216,43 @@ Mat getHalfSizeImage(const Mat& image) {
 Mat getDoubleSizeRoundImage(const Mat& image) {
 	int doubleRow = image.rows * 2, doubleCol = image.cols * 2;
 	Mat scaledImage = Mat(doubleRow, doubleCol, CV_8UC3);
+	for (int row = 0; row < image.rows / 2; row++) {
+		const uchar* imagePtr1 = image.ptr<uchar>(row * 2);
+		const uchar* imagePtr2 = image.ptr<uchar>(row * 2 + 1);
+		uchar* scaledPtr1 = scaledImage.ptr<uchar>(row * 4);
+		uchar* scaledPtr2 = scaledImage.ptr<uchar>(row * 4 + 1);
+		uchar* scaledPtr3 = scaledImage.ptr<uchar>(row * 4 + 2);
+		uchar* scaledPtr4 = scaledImage.ptr<uchar>(row * 4 + 3);
+		for (int col = 0; col < image.cols / 2; col++) {
+			uchar leftTopBlue = *imagePtr1++, leftTopGreen = *imagePtr1++, leftTopRed = *imagePtr1++;
+			uchar rightTopBlue = *imagePtr1++, rightTopGreen = *imagePtr1++, rightTopRed = *imagePtr1++;
+			uchar leftBottomBlue = *imagePtr2++, leftBottomGreen = *imagePtr2++, leftBottomRed = *imagePtr2++;
+			uchar rightBottomBlue = *imagePtr2++, rightBottomGreen = *imagePtr2++, rightBottomRed = *imagePtr2++;
+			vector<uchar> blueBilinear = getBilinearList(vector<uchar>{ leftTopBlue, rightTopBlue, leftBottomBlue, rightBottomBlue });
+			vector<uchar> greenBilinear = getBilinearList(vector<uchar>{ leftTopGreen, rightTopGreen, leftBottomGreen, rightBottomGreen });
+			vector<uchar> redBilinear = getBilinearList(vector<uchar>{ leftTopRed, rightTopRed, leftBottomRed, rightBottomRed });
+			for (int i = 0; i < 4; i++) {
+				*scaledPtr1++ = blueBilinear.at(i);
+				*scaledPtr1++ = greenBilinear.at(i);
+				*scaledPtr1++ = redBilinear.at(i);
+			}
+			for (int i = 4; i < 8; i++) {
+				*scaledPtr2++ = blueBilinear.at(i);
+				*scaledPtr2++ = greenBilinear.at(i);
+				*scaledPtr2++ = redBilinear.at(i);
+			}
+			for (int i = 8; i < 12; i++) {
+				*scaledPtr3++ = blueBilinear.at(i);
+				*scaledPtr3++ = greenBilinear.at(i);
+				*scaledPtr3++ = redBilinear.at(i);
+			}
+			for (int i = 12; i < 16; i++) {
+				*scaledPtr4++ = blueBilinear.at(i);
+				*scaledPtr4++ = greenBilinear.at(i);
+				*scaledPtr4++ = redBilinear.at(i);
+			}
+		}
+	}
 	return scaledImage;
 }
 
