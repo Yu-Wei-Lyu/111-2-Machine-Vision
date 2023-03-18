@@ -7,88 +7,47 @@ using namespace cv;
 void prepareFolder(vector<string> folderList);
 Mat getGrayScaleImage(const Mat& image);
 Mat getBinaryImage(const Mat& image);
-Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels);
+Vec3b getColorFromMap(Mat& colorMap, int& colorPixels, const Vec3b bgr, int& threshould);
 Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshould);
 Mat getDoubleSizeImage(const Mat& image);
 Mat getHalfSizeImage(const Mat& image);
 Mat getDoubleSizeRoundImage(const Mat& image);
 Mat getHalfSizeRoundImage(const Mat& image);
-
-uchar getBilinearValue(uchar valueClose, uchar valueFar) {
-	return (uchar)(valueClose * (2.0 / 3.0) + valueFar * (1.0 / 3.0));
-}
-
-vector<uchar> getBilinearList(vector<uchar> source) {
-	vector<uchar> result(16, -1);
-	result.at(0) = source.at(0);
-	result.at(3) = source.at(1);
-	result.at(12) = source.at(2);
-	result.at(15) = source.at(3);
-	result.at(1) = getBilinearValue(result.at(0), result.at(3));
-	result.at(2) = getBilinearValue(result.at(3), result.at(1));
-	result.at(13) = getBilinearValue(result.at(12), result.at(15));
-	result.at(14) = getBilinearValue(result.at(15), result.at(12));
-	result.at(4) = getBilinearValue(result.at(0), result.at(12));
-	result.at(5) = getBilinearValue(result.at(1), result.at(13));
-	result.at(6) = getBilinearValue(result.at(2), result.at(14));
-	result.at(7) = getBilinearValue(result.at(3), result.at(15));
-	result.at(8) = getBilinearValue(result.at(12), result.at(0));
-	result.at(9) = getBilinearValue(result.at(13), result.at(1));
-	result.at(10) = getBilinearValue(result.at(14), result.at(2));
-	result.at(11) = getBilinearValue(result.at(15), result.at(3));
-	return result;
-}
+uchar getBilinearValue(uchar valueClose, uchar valueFar);
+vector<uchar> getBilinearList(vector<uchar> source);
 
 int main()
 {
-	//vector<uchar> s{(uchar)129, (uchar)27, (uchar)32, (uchar)254};
-	//vector<uchar> a = getBilinearList(s);
-
-	//for (int i = 0; i < s.size(); i++) {
-	//	cout << (int)s.at(i) << ", ";
-	//	if ((i + 1) % 2 == 0)
-	//		cout << endl;
-	//}
-
-	//cout << "\nconvert to ...\n" << endl;
-
-	//for (int i = 0; i < a.size(); i++) {
-	//	cout << (int)a.at(i) << ", ";
-	//	if ((i + 1) % 4 == 0)
-	//		cout << endl;
-	//}
-	//
-	//return 0;
 	cout << "[Main] Start to processing images, please wait..." << endl;
-	vector<string> folderList = { "./Image/Source/", "./Image/Grayscale/", "./Image/Binary/", "./Image/Index color/", "./Image/Resize/", "./Image/Resize(interpolation)/" };
+	vector<string> folderList = { "../Image/Source/", "../Image/Grayscale/", "../Image/Binary/", "../Image/Index color/", "../Image/Resize/", "../Image/Resize(interpolation)/" };
 	vector<int> thresholdList = { 14, 20, 13, 15, 25, 21 };
 	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	//vector<string> imageList = { "House256.png" };
 	prepareFolder(folderList);
 	for (int i = 0; i < imageList.size(); i++) {
 		Mat image = imread(folderList.at(0) + imageList.at(i));
 		imshow("Source " + imageList.at(i), image);
-		//Mat gray = getGrayScaleImage(image);
-		//imshow("Gray", gray);
-		//imwrite(folderList.at(1) + imageList.at(i), gray);
-		//Mat binary = getBinaryImage(gray);
-		//imshow("Binary", binary);
-		//imwrite(folderList.at(2) + imageList.at(i), binary);
-		//Mat myColorMap;
-		//Mat indexColor2 = getIndexColorImage(image, myColorMap, 21);
-		//imshow("Index-Color-Limit", indexColor2);
-		//imwrite(folderList.at(3) + imageList.at(i), indexColor2);
-		//imshow("Color-Map-Limit", myColorMap);
-		//imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
-		//Mat scaledHalfImage = getHalfSizeImage(image);
-		//imshow("Scale half size image " + imageList.at(i), scaledHalfImage);
-		//imwrite(folderList.at(4) + "half_size_" + imageList.at(i), scaledHalfImage);
-		//Mat scaledDoubleImage = getDoubleSizeImage(image);
-		//imshow("Scale double size image " + imageList.at(i), scaledDoubleImage);
-		//imwrite(folderList.at(4) + "double_size_" + imageList.at(i), scaledDoubleImage);
-		//Mat scaledHalfRoundImage = getHalfSizeRoundImage(image);
-		//imshow("Scale half size image (round) " + imageList.at(i), scaledHalfRoundImage);
-		//imwrite(folderList.at(5) + "half_size_" + imageList.at(i), scaledHalfRoundImage);
+		Mat gray = getGrayScaleImage(image);
+		imshow("Gray", gray);
+		imwrite(folderList.at(1) + imageList.at(i), gray);
+		Mat binary = getBinaryImage(gray);
+		imshow("Binary", binary);
+		imwrite(folderList.at(2) + imageList.at(i), binary);
+		Mat myColorMap;
+		Mat indexColor2 = getIndexColorImage(image, myColorMap, thresholdList.at(i));
+		imshow("Index-Color", indexColor2);
+		myColorMap = getDoubleSizeImage(getDoubleSizeImage(getDoubleSizeImage(myColorMap)));
+		imwrite(folderList.at(3) + imageList.at(i), indexColor2);
+		imshow("Color-Map-Limit", myColorMap);
+		imwrite(folderList.at(3) + "color_map_" + imageList.at(i), myColorMap);
+		Mat scaledHalfImage = getHalfSizeImage(image);
+		imshow("Scale half size image " + imageList.at(i), scaledHalfImage);
+		imwrite(folderList.at(4) + "half_size_" + imageList.at(i), scaledHalfImage);
+		Mat scaledDoubleImage = getDoubleSizeImage(image);
+		imshow("Scale double size image " + imageList.at(i), scaledDoubleImage);
+		imwrite(folderList.at(4) + "double_size_" + imageList.at(i), scaledDoubleImage);
+		Mat scaledHalfRoundImage = getHalfSizeRoundImage(image);
+		imshow("Scale half size image (round) " + imageList.at(i), scaledHalfRoundImage);
+		imwrite(folderList.at(5) + "half_size_" + imageList.at(i), scaledHalfRoundImage);
 		Mat scaledDoubleRoundImage = getDoubleSizeRoundImage(image);
 		imshow("Scale double size image (round) " + imageList.at(i), scaledDoubleRoundImage);
 		imwrite(folderList.at(5) + "double_size_" + imageList.at(i), scaledDoubleRoundImage);
@@ -139,7 +98,7 @@ Mat getBinaryImage(const Mat& image) {
 	return binaryImage;
 }
 
-Vec3b getColorFromMap(Mat& colorMap, const Vec3b bgr, int& threshould, int& colorPixels) {
+Vec3b getColorFromMap(Mat& colorMap, int& colorPixels, const Vec3b bgr, int& threshould) {
 	uchar sourceBlue = bgr[0], sourceGreen = bgr[1], sourceRed = bgr[2];
 	uchar* colorMapPtr = colorMap.ptr<uchar>(0);
 	bool isInColorMap = false;
@@ -168,7 +127,7 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshold) {
 	for (int row = 0; row < image.rows; row++) {
 		for (int col = 0; col < image.cols; col++) {
 			const Vec3b originPixel = image.at<Vec3b>(row, col);
-			indexColorImage.at<Vec3b>(row, col) = getColorFromMap(colorMap, originPixel, threshold, colorMapSize);
+			indexColorImage.at<Vec3b>(row, col) = getColorFromMap(colorMap, colorMapSize, originPixel, threshold);
 			if (colorMapSize > 256) {
 				cerr << "[Index color image] Threshold too low, the image process incomplete, please set higher threshold." << endl;
 				return indexColorImage;
@@ -256,6 +215,31 @@ Mat getDoubleSizeRoundImage(const Mat& image) {
 	return scaledImage;
 }
 
+vector<uchar> getBilinearList(vector<uchar> source) {
+	vector<uchar> result(16, -1);
+	result.at(0) = source.at(0);
+	result.at(3) = source.at(1);
+	result.at(12) = source.at(2);
+	result.at(15) = source.at(3);
+	vector<int> sidePixel{ 1, 2, 13, 14 };
+	for (int index = 0; index < sidePixel.size(); index++) {
+		int pixelIndex = sidePixel.at(index);
+		int closeIndex = pixelIndex + 1 * pow(-1, pixelIndex % 2);
+		int farIndex = pixelIndex - 2 * pow(-1, pixelIndex % 2);
+		result.at(pixelIndex) = getBilinearValue(result.at(closeIndex), result.at(farIndex));
+	}
+	for (int index = 4; index < 12; index++) {
+		int closeIndex = index - 4 * pow(-1, index / 8);
+		int farIndex = index + 8 * pow(-1, index / 8);
+		result.at(index) = getBilinearValue(result.at(closeIndex), result.at(farIndex));
+	}
+	return result;
+}
+
+uchar getBilinearValue(uchar valueClose, uchar valueFar) {
+	return (uchar)(valueClose * (2.0 / 3.0) + valueFar * (1.0 / 3.0));
+}
+
 Mat getHalfSizeRoundImage(const Mat& image) {
 	int halfRow = image.rows / 2, halfCol = image.cols / 2;
 	Mat scaledImage = Mat(halfRow, halfCol, CV_8UC3);
@@ -275,3 +259,4 @@ Mat getHalfSizeRoundImage(const Mat& image) {
 	}
 	return scaledImage;
 }
+
