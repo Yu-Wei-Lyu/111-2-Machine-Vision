@@ -1,18 +1,16 @@
 #include<opencv2/opencv.hpp>
-#include<direct.h>
 
 using namespace std;
 using namespace cv;
 
-void prepareFolder(vector<string> folderList);
 Mat getGrayScaleImage(const Mat& image);
 Mat getBinaryImage(const Mat& image);
 Vec3b getColorFromMap(Mat& colorMap, int& colorPixels, const Vec3b bgr, int& threshould);
 Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshould);
-Mat getDoubleSizeImage(const Mat& image);
 Mat getHalfSizeImage(const Mat& image);
-Mat getDoubleSizeRoundImage(const Mat& image);
+Mat getDoubleSizeImage(const Mat& image);
 Mat getHalfSizeRoundImage(const Mat& image);
+Mat getDoubleSizeRoundImage(const Mat& image);
 uchar getBilinearValue(uchar valueClose, uchar valueFar);
 vector<uchar> getBilinearList(vector<uchar> source);
 
@@ -22,7 +20,6 @@ int main()
 	vector<string> folderList = { "../Image/Source/", "../Image/Grayscale/", "../Image/Binary/", "../Image/Index color/", "../Image/Resize/", "../Image/Resize(interpolation)/" };
 	vector<int> thresholdList = { 14, 20, 13, 15, 25, 21 };
 	vector<string> imageList = { "House256.png", "House512.png", "JellyBeans.png", "Lena.png", "Mandrill.png", "Peppers.png" };
-	prepareFolder(folderList);
 	for (int i = 0; i < imageList.size(); i++) {
 		Mat image = imread(folderList.at(0) + imageList.at(i));
 		imshow("Source " + imageList.at(i), image);
@@ -56,14 +53,6 @@ int main()
 	waitKey();
 	destroyAllWindows();
 	return 0;
-}
-
-void prepareFolder(vector<string> folderList) {
-	for (string& folder : folderList) {
-		if (_mkdir(folder.c_str()) != 0) {
-			cerr << "[Prepare folder] " << strerror(errno) << ", it won't cover (" << folder << ")" << endl;
-		}
-	}
 }
 
 Mat getGrayScaleImage(const Mat& image) {
@@ -137,6 +126,23 @@ Mat getIndexColorImage(const Mat& image, Mat& colorMap, int threshold) {
 	return indexColorImage;
 }
 
+Mat getHalfSizeImage(const Mat& image) {
+	int halfRow = image.rows / 2, halfCol = image.cols / 2;
+	Mat scaledImage = Mat(halfRow, halfCol, CV_8UC3);
+	for (int row = 0; row < halfRow; row++) {
+		const uchar* imagePtr = image.ptr<uchar>(row * 2);
+		uchar* scaledPtr = scaledImage.ptr<uchar>(row);
+		for (int col = 0; col < halfCol; col++) {
+			uchar imageBlue = *imagePtr++, imageGreen = *imagePtr++, imageRed = *imagePtr++;
+			*scaledPtr++ = imageBlue;
+			*scaledPtr++ = imageGreen;
+			*scaledPtr++ = imageRed;
+			imagePtr += 3;
+		}
+	}
+	return scaledImage;
+}
+
 Mat getDoubleSizeImage(const Mat& image) {
 	int doubleRow = image.rows * 2, doubleCol = image.cols * 2;
 	Mat scaledImage = Mat(doubleRow, doubleCol, CV_8UC3);
@@ -155,18 +161,21 @@ Mat getDoubleSizeImage(const Mat& image) {
 	return scaledImage;
 }
 
-Mat getHalfSizeImage(const Mat& image) {
+Mat getHalfSizeRoundImage(const Mat& image) {
 	int halfRow = image.rows / 2, halfCol = image.cols / 2;
 	Mat scaledImage = Mat(halfRow, halfCol, CV_8UC3);
-	for (int row = 0; row < halfRow; row++) {
-		const uchar* imagePtr = image.ptr<uchar>(row * 2);
+	for (int row = 0; row < halfCol; row++) {
+		const uchar* imagePtr1 = image.ptr<uchar>(row * 2);
+		const uchar* imagePtr2 = image.ptr<uchar>(row * 2 + 1);
 		uchar* scaledPtr = scaledImage.ptr<uchar>(row);
 		for (int col = 0; col < halfCol; col++) {
-			uchar imageBlue = *imagePtr++, imageGreen = *imagePtr++, imageRed = *imagePtr++;
-			*scaledPtr++ = imageBlue;
-			*scaledPtr++ = imageGreen;
-			*scaledPtr++ = imageRed;
-			imagePtr += 3;
+			uchar leftTopBlue = *imagePtr1++, leftTopGreen = *imagePtr1++, leftTopRed = *imagePtr1++;
+			uchar rightTopBlue = *imagePtr1++, rightTopGreen = *imagePtr1++, rightTopRed = *imagePtr1++;
+			uchar leftBottomBlue = *imagePtr2++, leftBottomGreen = *imagePtr2++, leftBottomRed = *imagePtr2++;
+			uchar rightBottomBlue = *imagePtr2++, rightBottomGreen = *imagePtr2++, rightBottomRed = *imagePtr2++;
+			*scaledPtr++ = (leftTopBlue + rightTopBlue + leftBottomBlue + rightBottomBlue) / 4;
+			*scaledPtr++ = (leftTopGreen + rightTopGreen + leftBottomGreen + rightBottomGreen) / 4;
+			*scaledPtr++ = (leftTopRed + rightTopRed + leftBottomRed + rightBottomRed) / 4;
 		}
 	}
 	return scaledImage;
@@ -239,24 +248,3 @@ vector<uchar> getBilinearList(vector<uchar> source) {
 uchar getBilinearValue(uchar valueClose, uchar valueFar) {
 	return (uchar)(valueClose * (2.0 / 3.0) + valueFar * (1.0 / 3.0));
 }
-
-Mat getHalfSizeRoundImage(const Mat& image) {
-	int halfRow = image.rows / 2, halfCol = image.cols / 2;
-	Mat scaledImage = Mat(halfRow, halfCol, CV_8UC3);
-	for (int row = 0; row < halfCol; row++) {
-		const uchar* imagePtr1 = image.ptr<uchar>(row * 2);
-		const uchar* imagePtr2 = image.ptr<uchar>(row * 2 + 1);
-		uchar* scaledPtr = scaledImage.ptr<uchar>(row);
-		for (int col = 0; col < halfCol; col++) {
-			uchar leftTopBlue = *imagePtr1++, leftTopGreen = *imagePtr1++, leftTopRed = *imagePtr1++;
-			uchar rightTopBlue = *imagePtr1++, rightTopGreen = *imagePtr1++, rightTopRed = *imagePtr1++;
-			uchar leftBottomBlue = *imagePtr2++, leftBottomGreen = *imagePtr2++, leftBottomRed = *imagePtr2++;
-			uchar rightBottomBlue = *imagePtr2++, rightBottomGreen = *imagePtr2++, rightBottomRed = *imagePtr2++;
-			*scaledPtr++ = (leftTopBlue + rightTopBlue + leftBottomBlue + rightBottomBlue) / 4;
-			*scaledPtr++ = (leftTopGreen + rightTopGreen + leftBottomGreen + rightBottomGreen) / 4;
-			*scaledPtr++ = (leftTopRed + rightTopRed + leftBottomRed + rightBottomRed) / 4;
-		}
-	}
-	return scaledImage;
-}
-
