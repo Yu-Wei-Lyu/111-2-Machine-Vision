@@ -14,6 +14,7 @@ public:
 		_grayImage = Mat(image.rows, image.cols, CV_8UC1);
 		SetGrayScaleImage();
 		_binaryImage = Mat(image.rows, image.cols, CV_8UC1);
+		_expandBinaryImage = Mat(image.rows + 2, image.cols + 2, CV_8UC1, 255);
 		_component = 0;
 		_maxGrayCount = 0;
 	}
@@ -66,13 +67,26 @@ public:
 		}
 	}
 
+	void PrepareExpandImage() {
+		uchar* imagePtr;
+		for (int row = 0; row < _binaryImage.rows; row++) {
+			imagePtr = _binaryImage.ptr<uchar>(row)
+			for (int col = 0; col < _binaryImage.cols; col++) {
+
+			}
+		}
+		_expandBinaryImage
+	}
+
 	// 計算物件數量
 	void CaculateAmount() {
 		int externalArg = 0, internalArg = 0;
 		const int externalTarget = 765, internalTarget = 255;
-		uchar* binaryPtr;
+		uchar* binaryPtr1;
+		uchar* binaryPtr2;
 		for (int row = 0; row < _binaryImage.rows; row++) {
-			binaryPtr = _binaryImage.ptr<uchar>(row);
+			binaryPtr1 = _binaryImage.ptr<uchar>(row);
+			binaryPtr2 = _binaryImage.ptr<uchar>(row + 1);
 			for (int col = 0; col < _binaryImage.cols; col++) {
 				int targetCount = *binaryPtr + *(binaryPtr + 1) + *(binaryPtr + _binaryImage.cols) + *(binaryPtr + _binaryImage.cols + 1);
 				
