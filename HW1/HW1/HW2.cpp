@@ -14,7 +14,8 @@ public:
 		_grayImage = Mat(image.rows, image.cols, CV_8UC1);
 		SetGrayScaleImage();
 		_binaryImage = Mat(image.rows, image.cols, CV_8UC1);
-		_expandBinaryImage = Mat(image.rows + 2, image.cols + 2, CV_8UC1, 255);
+		_labelVector = vector<int>(image.rows * image.cols);
+		_labelingImage = Mat(image.rows, image.cols, CV_8UC1);
 		_component = 0;
 		_maxGrayCount = 0;
 	}
@@ -67,30 +68,50 @@ public:
 		}
 	}
 
-	void PrepareExpandImage() {
-		uchar* imagePtr;
-		for (int row = 0; row < _binaryImage.rows; row++) {
-			imagePtr = _binaryImage.ptr<uchar>(row)
-			for (int col = 0; col < _binaryImage.cols; col++) {
-
-			}
-		}
-		_expandBinaryImage
+	int LabelVectorIndex(int i, int j) {
+		return i * _image.cols + j;
 	}
 
-	// 計算物件數量
-	void CaculateAmount() {
-		int externalArg = 0, internalArg = 0;
-		const int externalTarget = 765, internalTarget = 255;
-		uchar* binaryPtr1;
-		uchar* binaryPtr2;
+	void InitLabelingVector() {
+		uchar* binaryPtr;
 		for (int row = 0; row < _binaryImage.rows; row++) {
-			binaryPtr1 = _binaryImage.ptr<uchar>(row);
-			binaryPtr2 = _binaryImage.ptr<uchar>(row + 1);
+			binaryPtr = _binaryImage.ptr<uchar>(row);
 			for (int col = 0; col < _binaryImage.cols; col++) {
-				int targetCount = *binaryPtr + *(binaryPtr + 1) + *(binaryPtr + _binaryImage.cols) + *(binaryPtr + _binaryImage.cols + 1);
-				
+				_labelVector.at(LabelVectorIndex(row, col)) = (*binaryPtr++ == 0) ? -1 : 0;
+				if (_labelVector.at(LabelVectorIndex(row, col)) == -1) cout << "-";
+				else cout << 0;
 			}
+			cout << endl;
+		}
+	}
+
+
+
+	// label 並計算物件數
+	void LabelingBy4() {
+		InitLabelingVector();
+		uchar* labelPtr;
+		uchar pixelTop, pixelLeft;
+		int labelNumber = 0;
+		cout << "==" << endl;
+		for (int row = 0; row < _labelingImage.rows; row++) {
+			for (int col = 0; col < _labelingImage.cols; col++) {
+				if (_labelVector.at(LabelVectorIndex(row, col)) != 0) {
+					pixelTop = (row > 0) ? _labelVector.at(LabelVectorIndex(row - 1, col)) : 0;
+					pixelLeft = (col > 0) ? _labelVector.at(LabelVectorIndex(row, col - 1)) : 0;
+					if (pixelTop <= 0 && pixelLeft <= 0) _labelVector.at(LabelVectorIndex(row, col)) = ++labelNumber;
+					else if (pixelTop > 0 && pixelLeft <= 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
+					else if (pixelTop <= 0 && pixelLeft > 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelLeft;
+					else {
+						//if (pixelTop == pixelLeft) 
+						_labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
+						
+					}
+					//cout << _labelVector.at(LabelVectorIndex(row, col)) << ":" << pixelTop << ":" << pixelLeft << endl;
+				}
+				cout << _labelVector.at(LabelVectorIndex(row, col));
+			}
+			cout << endl;
 		}
 	}
 
@@ -121,30 +142,32 @@ private:
 	Mat _grayImage;
 	Mat _binaryImage;
 	Mat _grayHistogram;
-	Mat _expandBinaryImage;
+	Mat _labelingImage;
 	int _component;
 	int _maxGrayCount;
 	string _name;
 	vector<int> _grayCount;
+	vector<int> _labelVector;
 };
 
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
-	vector<int> binaryThresholdList = { 119, 245, 85, 254 };
-	vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
-	//vector<int> binaryThresholdList = { 254 };
-	//vector<string> imageList = { "4.png" };
+	//vector<int> binaryThresholdList = { 119, 245, 85, 254 };
+	//vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
+	vector<int> binaryThresholdList = { 254 };
+	vector<string> imageList = { "test2.png" };
 	for (int i = 0; i < imageList.size(); i++) {
 		string imageName = imageList.at(i);
 		Mat image = imread(folderList.at(0) + imageName);
 		LabelImage labelImage = LabelImage(image, imageName);
 		labelImage.SetBinaryImage(binaryThresholdList.at(i));
-		labelImage.SetGrayHistogram();
-		labelImage.ShowGrayHistogram();
-		labelImage.SaveGrayHistogram();
+		labelImage.LabelingBy4();
+		//labelImage.SetGrayHistogram();
+		//labelImage.ShowGrayHistogram();
+		//labelImage.SaveGrayHistogram();
 		labelImage.ShowBinaryImage();
-		labelImage.SaveBinaryImage();
+		//labelImage.SaveBinaryImage();
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
