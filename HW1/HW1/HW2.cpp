@@ -1,9 +1,25 @@
 #include<opencv2/opencv.hpp>
+#include <ppl.h>
+#include<time.h> 
 
 using namespace std;
 using namespace cv;
 
 class LabelImage { // 類別保存不同階段之影像 並不會覆蓋原圖
+private:
+	const string BINARY_FOLDER = "../Image/Binary/";
+	const string HISTOGRAM_PREFIX = "gray_histogram_";
+	Mat _image;
+	Mat _grayImage;
+	Mat _binaryImage;
+	Mat _grayHistogram;
+	Mat _labelingImage;
+	int _component;
+	int _maxGrayCount;
+	string _name;
+	vector<int> _grayCount;
+	vector<int> _labelVector;
+	set<int> _labelSet;
 public:
 	// 類別初始化
 	LabelImage(Mat image, string name) { // 原圖, 含副檔名之圖片名稱
@@ -14,7 +30,7 @@ public:
 		_grayImage = Mat(image.rows, image.cols, CV_8UC1);
 		SetGrayScaleImage();
 		_binaryImage = Mat(image.rows, image.cols, CV_8UC1);
-		_labelVector = vector<int>(image.rows * image.cols);
+		_labelVector = vector<int>(image.rows * (double)image.cols);
 		_labelingImage = Mat(image.rows, image.cols, CV_8UC1);
 		_component = 0;
 		_maxGrayCount = 0;
@@ -32,6 +48,7 @@ public:
 				*gray++ = (0.3 * red) + (0.59 * green) + (0.11 * blue);
 			}
 		}
+		imshow(_name + " gray", _grayImage);
 	}
 
 	// 設定灰階值方圖
@@ -78,41 +95,56 @@ public:
 			binaryPtr = _binaryImage.ptr<uchar>(row);
 			for (int col = 0; col < _binaryImage.cols; col++) {
 				_labelVector.at(LabelVectorIndex(row, col)) = (*binaryPtr++ == 0) ? -1 : 0;
-				if (_labelVector.at(LabelVectorIndex(row, col)) == -1) cout << "-";
-				else cout << 0;
+				//if (_labelVector.at(LabelVectorIndex(row, col)) == -1) cout << "-";
+				//else cout << 0;
 			}
-			cout << endl;
+			//cout << endl;
 		}
 	}
 
-
+	void LabelBy4Neighbor(const int row, const int col, int &labelNumber) {
+		uchar pixelTop, pixelLeft;
+		pixelTop = (row > 0) ? _labelVector.at(LabelVectorIndex(row - 1, col)) : 0;
+		pixelLeft = (col > 0) ? _labelVector.at(LabelVectorIndex(row, col - 1)) : 0;
+		if (pixelTop <= 0 && pixelLeft <= 0) {
+			_labelVector.at(LabelVectorIndex(row, col)) = labelNumber;
+			_labelSet.insert(labelNumber);
+			++labelNumber;
+		}
+		else if (pixelTop > 0 && pixelLeft <= 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
+		else if (pixelTop <= 0 && pixelLeft > 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelLeft;
+		else {
+			_labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
+			if (pixelTop != pixelLeft) {
+				for (int& pixel : _labelVector) {
+					if (pixel == pixelLeft) pixel = pixelTop;
+				}
+				_labelSet.erase(pixelLeft);
+			}
+		}
+	}
 
 	// label 並計算物件數
 	void LabelingBy4() {
 		InitLabelingVector();
-		uchar* labelPtr;
-		uchar pixelTop, pixelLeft;
-		int labelNumber = 0;
+		int labelNumber = 1;
 		cout << "==" << endl;
 		for (int row = 0; row < _labelingImage.rows; row++) {
 			for (int col = 0; col < _labelingImage.cols; col++) {
 				if (_labelVector.at(LabelVectorIndex(row, col)) != 0) {
-					pixelTop = (row > 0) ? _labelVector.at(LabelVectorIndex(row - 1, col)) : 0;
-					pixelLeft = (col > 0) ? _labelVector.at(LabelVectorIndex(row, col - 1)) : 0;
-					if (pixelTop <= 0 && pixelLeft <= 0) _labelVector.at(LabelVectorIndex(row, col)) = ++labelNumber;
-					else if (pixelTop > 0 && pixelLeft <= 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
-					else if (pixelTop <= 0 && pixelLeft > 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelLeft;
-					else {
-						//if (pixelTop == pixelLeft) 
-						_labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
-						
-					}
-					//cout << _labelVector.at(LabelVectorIndex(row, col)) << ":" << pixelTop << ":" << pixelLeft << endl;
+					LabelBy4Neighbor(row, col, labelNumber);
 				}
+			}
+		}
+
+		/*for (int row = 0; row < _labelingImage.rows; row++) {
+			for (int col = 0; col < _labelingImage.cols; col++) {
 				cout << _labelVector.at(LabelVectorIndex(row, col));
 			}
 			cout << endl;
-		}
+		}*/
+
+		cout << _labelSet.size() << " objects" << endl;
 	}
 
 	// 顯示二值化圖像
@@ -135,28 +167,15 @@ public:
 	void SaveGrayHistogram() {
 		imwrite(BINARY_FOLDER + HISTOGRAM_PREFIX + _name, _grayHistogram);
 	}
-private:
-	const string BINARY_FOLDER = "../Image/Binary/";
-	const string HISTOGRAM_PREFIX = "gray_histogram_";
-	Mat _image;
-	Mat _grayImage;
-	Mat _binaryImage;
-	Mat _grayHistogram;
-	Mat _labelingImage;
-	int _component;
-	int _maxGrayCount;
-	string _name;
-	vector<int> _grayCount;
-	vector<int> _labelVector;
 };
 
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
-	//vector<int> binaryThresholdList = { 119, 245, 85, 254 };
-	//vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
-	vector<int> binaryThresholdList = { 254 };
-	vector<string> imageList = { "test2.png" };
+	vector<int> binaryThresholdList = { 119, 245, 85, 254 };
+	vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
+	//vector<int> binaryThresholdList = { 254 };
+	//vector<string> imageList = { "4.png" };
 	for (int i = 0; i < imageList.size(); i++) {
 		string imageName = imageList.at(i);
 		Mat image = imread(folderList.at(0) + imageName);
@@ -166,8 +185,8 @@ int main() {
 		//labelImage.SetGrayHistogram();
 		//labelImage.ShowGrayHistogram();
 		//labelImage.SaveGrayHistogram();
-		labelImage.ShowBinaryImage();
-		//labelImage.SaveBinaryImage();
+		
+		labelImage.SaveBinaryImage();
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
