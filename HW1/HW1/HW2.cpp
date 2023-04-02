@@ -102,7 +102,7 @@ public:
 		}
 	}
 
-	void LabelBy4Neighbor(const int row, const int col, int &labelNumber) {
+	void LabelPixelBy4Neighbor(const int row, const int col, int &labelNumber) {
 		uchar pixelTop, pixelLeft;
 		pixelTop = (row > 0) ? _labelVector.at(LabelVectorIndex(row - 1, col)) : 0;
 		pixelLeft = (col > 0) ? _labelVector.at(LabelVectorIndex(row, col - 1)) : 0;
@@ -132,19 +132,35 @@ public:
 		for (int row = 0; row < _labelingImage.rows; row++) {
 			for (int col = 0; col < _labelingImage.cols; col++) {
 				if (_labelVector.at(LabelVectorIndex(row, col)) != 0) {
-					LabelBy4Neighbor(row, col, labelNumber);
+					LabelPixelBy4Neighbor(row, col, labelNumber);
 				}
 			}
 		}
-
-		/*for (int row = 0; row < _labelingImage.rows; row++) {
-			for (int col = 0; col < _labelingImage.cols; col++) {
-				cout << _labelVector.at(LabelVectorIndex(row, col));
-			}
-			cout << endl;
-		}*/
-
 		cout << _labelSet.size() << " objects" << endl;
+		LabelColorImage();
+	}
+
+	void LabelColorImage() {
+		set<vector<uchar>> colorSet;
+		int colorCount = 0;
+		int max = 255, min = 0;
+		do {
+			vector<uchar> bufferColor;
+			for (int color = 0; color < 3; color++) {
+				bufferColor.push_back(rand() % (max - min + 1) + min);
+			}
+			colorSet.insert(bufferColor);
+		} while (colorSet.size() != _labelSet.size());
+
+		for (vector<uchar> color : colorSet) {
+			cout << (int)color.at(0) << "," << (int)color.at(1) << "," << (int)color.at(2) << endl;
+		}
+		//uchar* labelPtr;
+		//for (int row = 0; row < _labelingImage.rows; row++) {
+		//	labelPtr = _labelingImage.ptr<uchar>(row);
+		//	for (int col = 0; col < _labelingImage.cols; col++) {
+		//	}
+		//}
 	}
 
 	// 顯示二值化圖像
@@ -172,10 +188,10 @@ public:
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
-	vector<int> binaryThresholdList = { 119, 245, 85, 254 };
-	vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
-	//vector<int> binaryThresholdList = { 254 };
-	//vector<string> imageList = { "4.png" };
+	//vector<int> binaryThresholdList = { 119, 245, 85, 254 };
+	//vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
+	vector<int> binaryThresholdList = { 254 };
+	vector<string> imageList = { "4.png" };
 	for (int i = 0; i < imageList.size(); i++) {
 		string imageName = imageList.at(i);
 		Mat image = imread(folderList.at(0) + imageName);
