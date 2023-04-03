@@ -8,6 +8,7 @@ using namespace cv;
 class LabelImage { // 類別保存不同階段之影像 並不會覆蓋原圖
 private:
 	const string BINARY_FOLDER = "../Image/Binary/";
+	const string LABELED_FOLDER = "../Image/Labeled/";
 	const string HISTOGRAM_PREFIX = "gray_histogram_";
 	Mat _image;
 	Mat _grayImage;
@@ -31,7 +32,7 @@ public:
 		SetGrayScaleImage();
 		_binaryImage = Mat(image.rows, image.cols, CV_8UC1);
 		_labelVector = vector<int>(image.rows * (double)image.cols);
-		_labelingImage = Mat(image.rows, image.cols, CV_8UC1);
+		_labelingImage = Mat(image.rows, image.cols, CV_8UC3);
 		_component = 0;
 		_maxGrayCount = 0;
 	}
@@ -52,7 +53,7 @@ public:
 	}
 
 	// 設定灰階值方圖
-	void SetGrayHistogram() {
+	void GetGrayHistogram() {
 		uchar* grayPtr;
 		int maxCount = 0;
 		for (int row = 0; row < _grayImage.rows; row++) {
@@ -70,10 +71,13 @@ public:
 			for (int row = 256 - grayValue; row < 256; row++)
 				_grayHistogram.at<uchar>(row, col) = 0;
 		}
+
+		imshow(_name + " gray histogram", _grayHistogram);
+		imwrite(BINARY_FOLDER + HISTOGRAM_PREFIX + _name, _grayHistogram);
 	}
 
 	// 用門檻值設定二值化影像
-	void SetBinaryImage(int threshold = 128) {
+	void GetBinaryImage(int threshold = 128) {
 		const uchar* imagePtr;
 		uchar* binary;
 		for (int row = 0; row < _grayImage.rows; row++) {
@@ -83,6 +87,8 @@ public:
 				*binary++ = (*imagePtr++ >= threshold) ? 255 : 0;
 			}
 		}
+		imshow(_name + " binary", _binaryImage);
+		imwrite(BINARY_FOLDER + _name, _binaryImage);
 	}
 
 	int LabelVectorIndex(int i, int j) {
@@ -141,47 +147,44 @@ public:
 	}
 
 	void LabelColorImage() {
+		map<int, vector<uchar>> labelMap;
 		set<vector<uchar>> colorSet;
 		int colorCount = 0;
 		int max = 255, min = 0;
-		do {
+		for (int labelNumber : _labelSet) {
+			bool isInColorSet = true;
 			vector<uchar> bufferColor;
-			for (int color = 0; color < 3; color++) {
-				bufferColor.push_back(rand() % (max - min + 1) + min);
-			}
+			srand(time(0));
+			do {
+				for (int color = 0; color < 3; color++) {
+					bufferColor.push_back(rand() % (max - min + 1) + min);
+				}
+				isInColorSet = colorSet.find(bufferColor) != colorSet.end();
+			} while (isInColorSet);
 			colorSet.insert(bufferColor);
-		} while (colorSet.size() != _labelSet.size());
-
-		for (vector<uchar> color : colorSet) {
-			cout << (int)color.at(0) << "," << (int)color.at(1) << "," << (int)color.at(2) << endl;
+			labelMap[labelNumber] = bufferColor;
 		}
-		//uchar* labelPtr;
-		//for (int row = 0; row < _labelingImage.rows; row++) {
-		//	labelPtr = _labelingImage.ptr<uchar>(row);
-		//	for (int col = 0; col < _labelingImage.cols; col++) {
-		//	}
-		//}
-	}
 
-	// 顯示二值化圖像
-	void ShowBinaryImage() {
-		imshow(_name + "二值圖", _binaryImage);
-	}
-
-	// 儲存二值化圖像
-	void SaveBinaryImage() {
-		imwrite(BINARY_FOLDER + _name, _binaryImage);
-	}
-
-	// 顯示灰階值方圖
-	void ShowGrayHistogram() {
-		//imshow(HISTOGRAM_PREFIX + _name, _grayHistogram);
-		imshow(_name + " 灰階值方圖", _grayHistogram);
-	}
-
-	// 儲存灰階值方圖
-	void SaveGrayHistogram() {
-		imwrite(BINARY_FOLDER + HISTOGRAM_PREFIX + _name, _grayHistogram);
+		uchar* labelPtr;
+		for (int row = 0; row < _labelingImage.rows; row++) {
+			labelPtr = _labelingImage.ptr<uchar>(row);
+			for (int col = 0; col < _labelingImage.cols; col++) {
+				int labelCode = _labelVector.at(LabelVectorIndex(row, col));
+				if (labelCode == 0) {
+					for (int bgr = 0; bgr < 3; bgr++) {
+						*labelPtr++ = 0;
+					}
+				}
+				else {
+					vector<uchar> colorDecode = labelMap[labelCode];
+					for (int bgr = 0; bgr < 3; bgr++) {
+						*labelPtr++ = colorDecode.at(bgr);
+					}
+				}
+			}
+		}
+		imshow("labeled", _labelingImage);
+		imwrite(LABELED_FOLDER + _name, _labelingImage);
 	}
 };
 
@@ -190,19 +193,17 @@ int main() {
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
 	//vector<int> binaryThresholdList = { 119, 245, 85, 254 };
 	//vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
-	vector<int> binaryThresholdList = { 254 };
-	vector<string> imageList = { "4.png" };
+	vector<int> binaryThresholdList = { 85 };
+	vector<string> imageList = { "3.png" };
 	for (int i = 0; i < imageList.size(); i++) {
 		string imageName = imageList.at(i);
 		Mat image = imread(folderList.at(0) + imageName);
 		LabelImage labelImage = LabelImage(image, imageName);
-		labelImage.SetBinaryImage(binaryThresholdList.at(i));
+		labelImage.GetBinaryImage(binaryThresholdList.at(i));
 		labelImage.LabelingBy4();
 		//labelImage.SetGrayHistogram();
 		//labelImage.ShowGrayHistogram();
 		//labelImage.SaveGrayHistogram();
-		
-		labelImage.SaveBinaryImage();
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
