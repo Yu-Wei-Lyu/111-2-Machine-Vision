@@ -79,7 +79,7 @@ public:
 	}
 
 	// 用門檻值設定二值化影像
-	void GetBinaryImage(int threshold, int closeingIteration) {
+	void GetBinaryImage(const int& threshold) {
 		const uchar* imagePtr;
 		uchar* binary;
 		for (int row = 0; row < _grayImage.rows; row++) {
@@ -89,8 +89,24 @@ public:
 				*binary++ = (*imagePtr++ >= threshold) ? 255 : 0;
 			}
 		}
-		DilationBinaryImage(closeingIteration);
-		ErosionBinaryImage(closeingIteration + 1);
+	}
+
+	// 用 Opening 或 Closing 做二值化處理 (填洞與去雜訊)
+	void ReconstructBinaryImage(const string& restructMode, const int& dilation, const int& erosion) {
+		imshow(_name + " or_binary", _binaryImage);
+		imwrite(BINARY_FOLDER + "or_" + _name, _binaryImage);
+		if (openingOrClosing == "opening") {
+			ErosionBinaryImage(erosion);
+			DilationBinaryImage(dilation);
+		}
+		else if (openingOrClosing == "closing") {
+			DilationBinaryImage(dilation);
+			ErosionBinaryImage(erosion);
+		}
+		imshow(_name + " d_", _binaryImage);
+		imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
+		imshow(_name + " e_", _binaryImage);
+		imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
 		imshow(_name + " binary", _binaryImage);
 		imwrite(BINARY_FOLDER + _name, _binaryImage);
 	}
@@ -186,7 +202,7 @@ public:
 		for (int neighborRow = -1; neighborRow <= 1; ++neighborRow) {
 			for (int neighborCol = -1; neighborCol <= 1; ++neighborCol) {
 				int nRow = row + neighborRow, nCol = col + neighborCol;
-				if (nRow > 0 && nRow < _binaryImage.rows - 1 && nCol > 0 && nCol < _binaryImage.cols - 1) {
+				if (nRow >= 0 && nRow <= _binaryImage.rows - 1 && nCol >= 0 && nCol <= _binaryImage.cols - 1) {
 					if (_labelVector.at(LabelVectorIndex(nRow, nCol)) != labelMark) {
 						_binaryImage.at<uchar>(nRow, nCol) = value;
 						_labelVector.at(LabelVectorIndex(nRow, nCol)) == EXPAND_MARK;
@@ -234,22 +250,38 @@ public:
 	}
 };
 
+class ImageInfo {
+public:
+	string Name;
+	string RestructMode;
+	int BinaryThreshold;
+	int RestructArg1;
+	int RestructArg2;
+	ImageInfo(string name, int binaryThreshold, string restructMode, int restructArg1 = 0, int restructArg2 = 0) {
+		this->Name = name;
+		this->BinaryThreshold = binaryThreshold;
+		this->RestructMode = restructMode;
+		this->RestructArg1 = restructArg1;
+		this->RestructArg2 = restructArg2;
+	}
+};
+
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
-	//vector<int> binaryThresholdList = { 119, 245, 85, 254 };
-	//vector<int> iterationList = { 119, 245, 4, 0 };
-	//vector<string> imageList = { "1.png", "2.png", "3.png", "4.png"};
-	vector<int, int> iterationList = { 2 };
-	vector<int> binaryThresholdList = { 245 };
-	vector<string> imageList = { "2.png" };
-	//vector<int> binaryThresholdList = { 254 };
-	//vector<string> imageList = { "4.png" };
-	for (int i = 0; i < imageList.size(); i++) {
-		string imageName = imageList.at(i);
-		Mat image = imread(folderList.at(0) + imageName);
-		LabelImage labelImage = LabelImage(image, imageName);
-		labelImage.GetBinaryImage(binaryThresholdList.at(i), iterationList.at(i));
+	vector<ImageInfo> imageInfoList;
+	imageInfoList.push_back(ImageInfo("1.png", 119, "closing", 0, 0));
+	imageInfoList.push_back(ImageInfo("2.png", 221, "dilation", 1));
+	imageInfoList.push_back(ImageInfo("3.png", 85, "closing", 4, 5));
+	imageInfoList.push_back(ImageInfo("4.png", 254, "orginal"));
+	int debug = 1;
+	for (int i = debug; i <= debug; ++i) {
+	//for (int i = 0; i < imageInfoList.size(); i++) {
+		ImageInfo imageInfo = imageInfoList.at(i);
+		Mat image = imread("../Image/Source/" + imageInfo.Name);
+		LabelImage labelImage = LabelImage(image, imageInfo.Name);
+		labelImage.GetBinaryImage(imageInfo.BinaryThreshold);
+		labelImage.ReconstructBinaryImage(imageInfo.RestructMode, imageInfo.RestructArg1, imageInfo.RestructArg2);
 		labelImage.LabelingBy4();
 		labelImage.PrintComponentAmount();
 		//labelImage.SetGrayHistogram();
