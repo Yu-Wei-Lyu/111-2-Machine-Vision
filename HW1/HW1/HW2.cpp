@@ -63,7 +63,7 @@ public:
 			for (int col = 0; col < _grayImage.cols; col++) {
 				_grayCount.at(*grayPtr) += 1;
 				if (_grayCount.at(*grayPtr) > maxCount) maxCount = _grayCount.at(*grayPtr);
-				*grayPtr++;
+				grayPtr++;
 			}
 		}
 
@@ -175,30 +175,47 @@ public:
 		LabelColorImage();
 	}
 
+	bool isInVector(const vector<int>& v, int target) {
+		for (const int& value : v) {
+			if (value == target) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+
 	void LabelPixelBy8Neighbor(const int& row, const int& col, int& labelNumber) {
-		vector<pair<int, int>> maskVector = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1} };
-		vector<int> maskLabels;
+		vector<pair<int, int>> neighbors = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1} };
+		vector<int> neighborLabelSet;
 		int conditionCode = -1;
-		int labelLeftTop, labelTop, labelRightTop, labelLeft;
-		for (const pair<int, int>& mask : maskVector) {
-			int nRow = row + mask.first, nCol = col + mask.second;
+		for (const pair<int, int>& neighbor : neighbors) {
+			int nRow = row + neighbor.first, nCol = col + neighbor.second;
 			int maskLabelNumber = 0;
 			if (nRow >= 0 && nRow < _binaryImage.rows && nCol >= 0 && nCol < _binaryImage.cols - 1) {
 				maskLabelNumber = _labelVector.at(LabelVectorIndex(nRow, nCol));
 			}
-			maskLabels.push_back(maskLabelNumber);
+			if (maskLabelNumber != 0 && !isInVector(neighborLabelSet, maskLabelNumber)) {
+				neighborLabelSet.push_back(maskLabelNumber);
+			}
 		}
-		vector<int>::iterator it;
-		it = remove(maskLabels.begin(), maskLabels.end(), 0);
-		auto last = std::unique(maskLabels.begin(), maskLabels.end());
-		maskLabels.erase(last, maskLabels.end());
-		if (maskLabels.size() == 0) {
+
+		if (neighborLabelSet.size() == 0) {
 			_labelVector.at(LabelVectorIndex(row, col)) = labelNumber;
 			_labelSet.insert(labelNumber);
 			++labelNumber;
-		} else if (maskLabels.size() == 1) {
-			_labelVector.at(LabelVectorIndex(row, col)) = maskLabels.at(0);
+		} else if (neighborLabelSet.size() == 1) {
+			_labelVector.at(LabelVectorIndex(row, col)) = neighborLabelSet.at(0);
 		} else {
+			int mergeLabel = neighborLabelSet.at(0);
+			for (int maskIndex = neighborLabelSet.size() - 1; maskIndex > 0; maskIndex--) {
+				for (int labelIndex = 0; labelIndex < _binaryImage.rows * _binaryImage.cols; labelIndex++) {
+					if (find(neighborLabelSet.begin(), neighborLabelSet.end(), _labelVector.at(labelIndex)) != neighborLabelSet.end()) {
+						_labelVector.at(labelIndex) = mergeLabel;
+					}
+				}
+				neighborLabelSet.pop_back();
+			}
 
 		}
 	}
@@ -319,17 +336,32 @@ public:
 		this->RestructArg2 = restructArg2;
 	}
 };
-#include <unordered_set>
-int main() {
-	cout << "[Main] Start to processing images, please wait..." << endl;
-	std::vector<int> values = { 3, 2, 1, 5, 2, 7, 0 };
-	std::unordered_set<int> unique_values;
 
-	for (auto value : values) {
-		if (unique_values.insert(value).second) {
-			std::cout << value << " ";
+bool isInVector(const vector<int>& v, int target) {
+	for (const int& value : v) {
+		if (value == target) {
+			return true;
 		}
 	}
+	return false;
+}
+
+int main() {
+	cout << "[Main] Start to processing images, please wait..." << endl;
+	vector<int> values = { 0,1,0,1 };
+	vector<int> maskLabels;
+
+	for (auto value : values) {
+		if (value != 0 && !isInVector(maskLabels, value)) {
+			maskLabels.push_back(value);
+		}
+	}
+
+	for (auto value : maskLabels) {
+		cout << value << ", ";
+	}
+	cout << endl;
+	cout << maskLabels.size();
 	return 0;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
 	vector<ImageInfo> imageInfoList;
