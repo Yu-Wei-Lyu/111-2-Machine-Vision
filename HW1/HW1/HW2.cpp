@@ -51,7 +51,7 @@ public:
 				*gray++ = (0.3 * red) + (0.59 * green) + (0.11 * blue);
 			}
 		}
-		//imshow(_name + " gray", _grayImage);
+		imshow(_name + " gray", _grayImage);
 	}
 
 	// 設定灰階值方圖
@@ -92,21 +92,32 @@ public:
 	}
 
 	// 用 Opening 或 Closing 做二值化處理 (填洞與去雜訊)
-	void ReconstructBinaryImage(const string& restructMode, const int& dilation, const int& erosion) {
+	void ReconstructBinaryImage(const string restructMode, const int& restructArg1, const int& restructArg2) {
 		imshow(_name + " or_binary", _binaryImage);
 		imwrite(BINARY_FOLDER + "or_" + _name, _binaryImage);
-		if (openingOrClosing == "opening") {
-			ErosionBinaryImage(erosion);
-			DilationBinaryImage(dilation);
+		if (restructMode == "opening") {
+			ErosionBinaryImage(restructArg1);
+			imshow(_name + " e_", _binaryImage);
+			imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
+			DilationBinaryImage(restructArg2);
+			imshow(_name + " d_", _binaryImage);
+			imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
+		} else if (restructMode == "closing") {
+			DilationBinaryImage(restructArg1);
+			imshow(_name + " d_", _binaryImage);
+			imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
+			ErosionBinaryImage(restructArg2);
+			imshow(_name + " e_", _binaryImage);
+			imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
+		} else if (restructMode == "dilation") {
+			DilationBinaryImage(restructArg1);
+			imshow(_name + " d_", _binaryImage);
+			imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
+		} else if (restructMode == "erosion") {
+			ErosionBinaryImage(restructArg1);
+			imshow(_name + " e_", _binaryImage);
+			imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
 		}
-		else if (openingOrClosing == "closing") {
-			DilationBinaryImage(dilation);
-			ErosionBinaryImage(erosion);
-		}
-		imshow(_name + " d_", _binaryImage);
-		imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
-		imshow(_name + " e_", _binaryImage);
-		imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
 		imshow(_name + " binary", _binaryImage);
 		imwrite(BINARY_FOLDER + _name, _binaryImage);
 	}
@@ -115,7 +126,7 @@ public:
 		return i * _image.cols + j;
 	}
 
-	void InitLabelingVector() {
+	void InitLabelingData() {
 		uchar* binaryPtr;
 		for (int row = 0; row < _binaryImage.rows; row++) {
 			binaryPtr = _binaryImage.ptr<uchar>(row);
@@ -123,33 +134,34 @@ public:
 				_labelVector.at(LabelVectorIndex(row, col)) = (*binaryPtr++ == 0) ? MARK_BLACK : MARK_WHITE;
 			}
 		}
+		_labelSet.clear();
 	}
 
 	void LabelPixelBy4Neighbor(const int& row, const int& col, int& labelNumber) {
-		int pixelTop, pixelLeft;
-		pixelTop = (row > 0) ? _labelVector.at(LabelVectorIndex(row - 1, col)) : 0;
-		pixelLeft = (col > 0) ? _labelVector.at(LabelVectorIndex(row, col - 1)) : 0;
-		if (pixelTop == 0 && pixelLeft == 0) {
+		int labelTop, labelLeft;
+		labelTop = (row > 0) ? _labelVector.at(LabelVectorIndex(row - 1, col)) : 0;
+		labelLeft = (col > 0) ? _labelVector.at(LabelVectorIndex(row, col - 1)) : 0;
+		if (labelTop == 0 && labelLeft == 0) {
 			_labelVector.at(LabelVectorIndex(row, col)) = labelNumber;
 			_labelSet.insert(labelNumber);
 			++labelNumber;
 		}
-		else if (pixelTop == 0 && pixelLeft > 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelLeft;
-		else if (pixelTop > 0 && pixelLeft == 0) _labelVector.at(LabelVectorIndex(row, col)) = pixelTop;
+		else if (labelTop == 0 && labelLeft > 0) _labelVector.at(LabelVectorIndex(row, col)) = labelLeft;
+		else if (labelTop > 0 && labelLeft == 0) _labelVector.at(LabelVectorIndex(row, col)) = labelTop;
 		else {
-			_labelVector.at(LabelVectorIndex(row, col)) = pixelLeft;
-			if (pixelTop != pixelLeft) {
+			_labelVector.at(LabelVectorIndex(row, col)) = labelLeft;
+			if (labelTop != labelLeft) {
 				for (int labelIndex = 0; labelIndex < _binaryImage.rows * _binaryImage.cols; labelIndex++) {
-					if (_labelVector.at(labelIndex) == pixelTop) _labelVector.at(labelIndex) = pixelLeft;
+					if (_labelVector.at(labelIndex) == labelTop) _labelVector.at(labelIndex) = labelLeft;
 				}
-				_labelSet.erase(pixelTop);
+				_labelSet.erase(labelTop);
 			}
 		}
 	}
 
-	// label 並計算物件數
+	// 以4連通標記物件
 	void LabelingBy4() {
-		InitLabelingVector();
+		InitLabelingData();
 		int labelNumber = 1;
 		cout << "==" << endl;
 		for (int row = 0; row < _labelingImage.rows; row++) {
@@ -161,14 +173,57 @@ public:
 		}
 		_component = _labelSet.size();
 		LabelColorImage();
-		
+	}
+
+	void LabelPixelBy8Neighbor(const int& row, const int& col, int& labelNumber) {
+		vector<pair<int, int>> maskVector = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1} };
+		vector<int> maskLabels;
+		int conditionCode = -1;
+		int labelLeftTop, labelTop, labelRightTop, labelLeft;
+		for (const pair<int, int>& mask : maskVector) {
+			int nRow = row + mask.first, nCol = col + mask.second;
+			int maskLabelNumber = 0;
+			if (nRow >= 0 && nRow < _binaryImage.rows && nCol >= 0 && nCol < _binaryImage.cols - 1) {
+				maskLabelNumber = _labelVector.at(LabelVectorIndex(nRow, nCol));
+			}
+			maskLabels.push_back(maskLabelNumber);
+		}
+		vector<int>::iterator it;
+		it = remove(maskLabels.begin(), maskLabels.end(), 0);
+		auto last = std::unique(maskLabels.begin(), maskLabels.end());
+		maskLabels.erase(last, maskLabels.end());
+		if (maskLabels.size() == 0) {
+			_labelVector.at(LabelVectorIndex(row, col)) = labelNumber;
+			_labelSet.insert(labelNumber);
+			++labelNumber;
+		} else if (maskLabels.size() == 1) {
+			_labelVector.at(LabelVectorIndex(row, col)) = maskLabels.at(0);
+		} else {
+
+		}
+	}
+
+	// 以8連通標記物件
+	void LabelingBy8() {
+		InitLabelingData();
+		int labelNumber = 1;
+		cout << "==" << endl;
+		for (int row = 0; row < _labelingImage.rows; row++) {
+			for (int col = 0; col < _labelingImage.cols; col++) {
+				if (_labelVector.at(LabelVectorIndex(row, col)) != 0) {
+					LabelPixelBy8Neighbor(row, col, labelNumber);
+				}
+			}
+		}
+		_component = _labelSet.size();
+		LabelColorImage();
 	}
 
 	// 對二值化圖像膨脹 iteration 次
 	void DilationBinaryImage(int iteration) {
 		uchar* binaryPtr;
 		for (int repeat = 0; repeat < iteration; ++repeat) {
-			InitLabelingVector();
+			InitLabelingData();
 			for (int row = 0; row < _binaryImage.rows; ++row) {
 				binaryPtr = _binaryImage.ptr<uchar>(row);
 				for (int col = 0; col < _binaryImage.cols; ++col) {
@@ -184,7 +239,7 @@ public:
 	void ErosionBinaryImage(int iteration) {
 		uchar* binaryPtr;
 		for (int repeat = 0; repeat < iteration; ++repeat) {
-			InitLabelingVector();
+			InitLabelingData();
 			for (int row = 0; row < _binaryImage.rows; ++row) {
 				binaryPtr = _binaryImage.ptr<uchar>(row);
 				for (int col = 0; col < _binaryImage.cols; ++col) {
@@ -202,7 +257,7 @@ public:
 		for (int neighborRow = -1; neighborRow <= 1; ++neighborRow) {
 			for (int neighborCol = -1; neighborCol <= 1; ++neighborCol) {
 				int nRow = row + neighborRow, nCol = col + neighborCol;
-				if (nRow >= 0 && nRow <= _binaryImage.rows - 1 && nCol >= 0 && nCol <= _binaryImage.cols - 1) {
+				if (nRow >= 0 && nRow < _binaryImage.rows && nCol >= 0 && nCol < _binaryImage.cols) {
 					if (_labelVector.at(LabelVectorIndex(nRow, nCol)) != labelMark) {
 						_binaryImage.at<uchar>(nRow, nCol) = value;
 						_labelVector.at(LabelVectorIndex(nRow, nCol)) == EXPAND_MARK;
@@ -213,7 +268,6 @@ public:
 	}
 
 	void LabelColorImage() {
-		
 		set<vector<uchar>> colorSet;
 		int colorCount = 0;
 		int max = 255, min = 0;
@@ -265,16 +319,25 @@ public:
 		this->RestructArg2 = restructArg2;
 	}
 };
-
+#include <unordered_set>
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
+	std::vector<int> values = { 3, 2, 1, 5, 2, 7, 0 };
+	std::unordered_set<int> unique_values;
+
+	for (auto value : values) {
+		if (unique_values.insert(value).second) {
+			std::cout << value << " ";
+		}
+	}
+	return 0;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
 	vector<ImageInfo> imageInfoList;
-	imageInfoList.push_back(ImageInfo("1.png", 119, "closing", 0, 0));
+	imageInfoList.push_back(ImageInfo("1.png", 119, "erosion", 1));
 	imageInfoList.push_back(ImageInfo("2.png", 221, "dilation", 1));
 	imageInfoList.push_back(ImageInfo("3.png", 85, "closing", 4, 5));
-	imageInfoList.push_back(ImageInfo("4.png", 254, "orginal"));
-	int debug = 1;
+	imageInfoList.push_back(ImageInfo("4.png", 227, "orginal"));
+	int debug = 3;
 	for (int i = debug; i <= debug; ++i) {
 	//for (int i = 0; i < imageInfoList.size(); i++) {
 		ImageInfo imageInfo = imageInfoList.at(i);
@@ -284,9 +347,6 @@ int main() {
 		labelImage.ReconstructBinaryImage(imageInfo.RestructMode, imageInfo.RestructArg1, imageInfo.RestructArg2);
 		labelImage.LabelingBy4();
 		labelImage.PrintComponentAmount();
-		//labelImage.SetGrayHistogram();
-		//labelImage.ShowGrayHistogram();
-		//labelImage.SaveGrayHistogram();
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
