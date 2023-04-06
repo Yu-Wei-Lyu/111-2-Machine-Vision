@@ -24,13 +24,18 @@ public:
 	LabelImage(Mat image, string name) { // 原圖, 含副檔名之圖片名稱
 		_name = name;
 		_image = image;
+		Initialize();
+	}
+
+	void Initialize() {
+		int height = _image.rows, width = _image.cols;
 		_grayCount = vector<int>(256);
 		_grayHistogram = Mat(256, 256, CV_8UC1, 255); // 正規化灰階值方圖 (256x256x1)
-		_grayImage = Mat(image.rows, image.cols, CV_8UC1);
+		_grayImage = Mat(height, width, CV_8UC1);
 		SetGrayScaleImage();
-		_binaryImage = Mat(image.rows, image.cols, CV_8UC1);
-		_labelVector = vector<int>(image.rows * (double)image.cols);
-		_labelImage = Mat(image.rows, image.cols, CV_8UC3);
+		_binaryImage = Mat(height, width, CV_8UC1);
+		_labelVector = vector<int>(height * width);
+		_labelImage = Mat(height, width, CV_8UC3);
 		_component = 0;
 		_maxGrayCount = 0;
 	}
@@ -121,6 +126,7 @@ public:
 			}
 		}
 		_labelSet.clear();
+		_labelImage = Mat(_image.rows, _image.cols, CV_8UC3);
 	}
 
 	void LabelPixelBy4Neighbor(const int& row, const int& col, int& labelNumber) {
@@ -158,7 +164,7 @@ public:
 			}
 		}
 		_component = _labelSet.size();
-		LabelColorImage();
+		DrawLabel();
 		cout << _name << " with 4-neighbor has " << _component << " objects" << endl;
 		imshow(_name + " 4-neighbor labeled", _labelImage);
 		imwrite(LABELED_FOLDER + "4-neighbor_" + _name, _labelImage);
@@ -173,13 +179,12 @@ public:
 		return false;
 	}
 
-
-	void LabelPixelBy8Neighbor(const int& row, const int& col, int& labelNumber) {
-		vector<pair<int, int>> neighbors = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1} };
+	vector<int> GetNeighborLabelBy8(const int& row, const int& col) {
+		vector<pair<int, int>> masks = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1} };
 		vector<int> neighborLabelSet;
 		int conditionCode = -1;
-		for (const pair<int, int>& neighbor : neighbors) {
-			int nRow = row + neighbor.first, nCol = col + neighbor.second;
+		for (const pair<int, int>& mask : masks) {
+			int nRow = row + mask.first, nCol = col + mask.second;
 			int maskLabelNumber = 0;
 			if (nRow >= 0 && nRow < _binaryImage.rows && nCol >= 0 && nCol < _binaryImage.cols - 1) {
 				maskLabelNumber = _labelVector.at(LabelVectorIndex(nRow, nCol));
@@ -188,7 +193,11 @@ public:
 				neighborLabelSet.push_back(maskLabelNumber);
 			}
 		}
+		return neighborLabelSet;
+	}
 
+	void LabelPixelBy8Neighbor(const int& row, const int& col, int& labelNumber) {
+		vector<int> neighborLabelSet = GetNeighborLabelBy8(row, col);
 		if (neighborLabelSet.size() == 0) {
 			_labelVector.at(LabelVectorIndex(row, col)) = labelNumber;
 			_labelSet.insert(labelNumber);
@@ -207,7 +216,6 @@ public:
 				}
 				neighborLabelSet.pop_back();
 			}
-
 		}
 	}
 
@@ -224,7 +232,7 @@ public:
 			}
 		}
 		_component = _labelSet.size();
-		LabelColorImage();
+		DrawLabel();
 		cout << _name << " with 8-neighbor has " << _component << " objects" << endl;
 		imshow(_name + " 8-neighbor labeled", _labelImage);
 		imwrite(LABELED_FOLDER + "8-neighbor_" + _name, _labelImage);
@@ -297,7 +305,7 @@ public:
 		}
 	}
 
-	void LabelColorImage() {
+	void DrawLabel() {
 		SetColorLabelMap();
 		uchar* labelImagePtr;
 		for (int row = 0; row < _labelImage.rows; row++) {
