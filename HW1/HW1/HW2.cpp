@@ -1,15 +1,15 @@
-#include<opencv2/opencv.hpp>
+ï»¿#include<opencv2/opencv.hpp>
 #include <ppl.h>
 #include<time.h> 
 
 using namespace std;
 using namespace cv;
 
-class LabelImage { // Ãş§O«O¦s¤£¦P¶¥¬q¤§¼v¹³ ¨Ã¤£·|ÂĞ»\­ì¹Ï
+class LabelImage { // é¡åˆ¥ä¿å­˜ä¸åŒéšæ®µä¹‹å½±åƒ ä¸¦ä¸æœƒè¦†è“‹åŸåœ–
 private:
 	const string BINARY_FOLDER = "../Image/Binary/", LABELED_FOLDER = "../Image/Labeled/";
 	const int MARK_BLACK = -1, MARK_WHITE = 0, EXPAND_MARK = 1;
-	Mat _image, _grayImage, _binaryImage, _labelingImage;
+	Mat _image, _grayImage, _binaryImage, _labelImage;
 	Mat _grayHistogram;
 	int _component;
 	int _maxGrayCount;
@@ -20,26 +20,22 @@ private:
 	map<int, vector<uchar>> _colorLabelMap;
 
 public:
-	// Ãş§Oªì©l¤Æ
-	LabelImage(Mat image, string name) { // ­ì¹Ï, §t°ÆÀÉ¦W¤§¹Ï¤ù¦WºÙ
+	// é¡åˆ¥åˆå§‹åŒ–
+	LabelImage(Mat image, string name) { // åŸåœ–, å«å‰¯æª”åä¹‹åœ–ç‰‡åç¨±
 		_name = name;
 		_image = image;
 		_grayCount = vector<int>(256);
-		_grayHistogram = Mat(256, 256, CV_8UC1, 255); // ¥¿³W¤Æ¦Ç¶¥­È¤è¹Ï (256x256x1)
+		_grayHistogram = Mat(256, 256, CV_8UC1, 255); // æ­£è¦åŒ–ç°éšå€¼æ–¹åœ– (256x256x1)
 		_grayImage = Mat(image.rows, image.cols, CV_8UC1);
 		SetGrayScaleImage();
 		_binaryImage = Mat(image.rows, image.cols, CV_8UC1);
 		_labelVector = vector<int>(image.rows * (double)image.cols);
-		_labelingImage = Mat(image.rows, image.cols, CV_8UC3);
+		_labelImage = Mat(image.rows, image.cols, CV_8UC3);
 		_component = 0;
 		_maxGrayCount = 0;
 	}
 
-	void PrintComponentAmount() {
-		cout << _name << " has " << _component << " objects" << endl;
-	}
-
-	// ³]©w¦Ç¶¥¤Æ¹Ï¹³
+	// è¨­å®šç°éšåŒ–åœ–åƒ
 	void SetGrayScaleImage() {
 		const uchar* imagePtr;
 		uchar* gray;
@@ -51,10 +47,10 @@ public:
 				*gray++ = (0.3 * red) + (0.59 * green) + (0.11 * blue);
 			}
 		}
-		imshow(_name + " gray", _grayImage);
+		//imshow(_name + " gray", _grayImage);
 	}
 
-	// ³]©w¦Ç¶¥­È¤è¹Ï
+	// è¨­å®šç°éšå€¼æ–¹åœ–
 	void GetGrayHistogram() {
 		uchar* grayPtr;
 		int maxCount = 0;
@@ -69,7 +65,7 @@ public:
 
 		for (int col = 0; col < 256; col++) {
 			int grayValue = (int)(_grayCount.at(col) / (double)maxCount * 256);
-			//cout << col << ": " << grayValue << endl; // ¬dªí¥Î
+			//cout << col << ": " << grayValue << endl; // æŸ¥è¡¨ç”¨
 			for (int row = 256 - grayValue; row < 256; row++)
 				_grayHistogram.at<uchar>(row, col) = 0;
 		}
@@ -78,7 +74,7 @@ public:
 		imwrite(BINARY_FOLDER + "gray_histogram_" + _name, _grayHistogram);
 	}
 
-	// ¥ÎªùÂe­È³]©w¤G­È¤Æ¼v¹³
+	// ç”¨é–€æª»å€¼è¨­å®šäºŒå€¼åŒ–å½±åƒ
 	void GetBinaryImage(const int& threshold) {
 		const uchar* imagePtr;
 		uchar* binary;
@@ -89,34 +85,24 @@ public:
 				*binary++ = (*imagePtr++ >= threshold) ? 255 : 0;
 			}
 		}
+		//imshow(_name + "original binary", _binaryImage);
 	}
 
-	// ¥Î Opening ©Î Closing °µ¤G­È¤Æ³B²z (¶ñ¬}»P¥hÂø°T)
-	void ReconstructBinaryImage(const string restructMode, const int& restructArg1, const int& restructArg2) {
-		imshow(_name + " or_binary", _binaryImage);
-		imwrite(BINARY_FOLDER + "or_" + _name, _binaryImage);
+	// ç”¨ Opening æˆ– Closing åšäºŒå€¼åŒ–è™•ç† (å¡«æ´èˆ‡å»é›œè¨Š)
+	void ReconstructBinaryImage(const string& restructMode, const int& restructArg1, const int& restructArg2) {
 		if (restructMode == "opening") {
 			ErosionBinaryImage(restructArg1);
-			imshow(_name + " e_", _binaryImage);
-			imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
 			DilationBinaryImage(restructArg2);
-			imshow(_name + " d_", _binaryImage);
-			imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
-		} else if (restructMode == "closing") {
+		}
+		else if (restructMode == "closing") {
 			DilationBinaryImage(restructArg1);
-			imshow(_name + " d_", _binaryImage);
-			imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
 			ErosionBinaryImage(restructArg2);
-			imshow(_name + " e_", _binaryImage);
-			imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
-		} else if (restructMode == "dilation") {
+		}
+		else if (restructMode == "dilation") {
 			DilationBinaryImage(restructArg1);
-			imshow(_name + " d_", _binaryImage);
-			imwrite(BINARY_FOLDER + "d_" + _name, _binaryImage);
-		} else if (restructMode == "erosion") {
+		}
+		else if (restructMode == "erosion") {
 			ErosionBinaryImage(restructArg1);
-			imshow(_name + " e_", _binaryImage);
-			imwrite(BINARY_FOLDER + "e_" + _name, _binaryImage);
 		}
 		imshow(_name + " binary", _binaryImage);
 		imwrite(BINARY_FOLDER + _name, _binaryImage);
@@ -159,13 +145,13 @@ public:
 		}
 	}
 
-	// ¥H4³s³q¼Ğ°Oª«¥ó
+	// ä»¥4é€£é€šæ¨™è¨˜ç‰©ä»¶
 	void LabelingBy4() {
 		InitLabelingData();
 		int labelNumber = 1;
 		cout << "==" << endl;
-		for (int row = 0; row < _labelingImage.rows; row++) {
-			for (int col = 0; col < _labelingImage.cols; col++) {
+		for (int row = 0; row < _labelImage.rows; row++) {
+			for (int col = 0; col < _labelImage.cols; col++) {
 				if (_labelVector.at(LabelVectorIndex(row, col)) != 0) {
 					LabelPixelBy4Neighbor(row, col, labelNumber);
 				}
@@ -173,6 +159,9 @@ public:
 		}
 		_component = _labelSet.size();
 		LabelColorImage();
+		cout << _name << " with 4-neighbor has " << _component << " objects" << endl;
+		imshow(_name + " 4-neighbor labeled", _labelImage);
+		imwrite(LABELED_FOLDER + "4-neighbor_" + _name, _labelImage);
 	}
 
 	bool isInVector(const vector<int>& v, int target) {
@@ -204,9 +193,11 @@ public:
 			_labelVector.at(LabelVectorIndex(row, col)) = labelNumber;
 			_labelSet.insert(labelNumber);
 			++labelNumber;
-		} else if (neighborLabelSet.size() == 1) {
+		}
+		else if (neighborLabelSet.size() == 1) {
 			_labelVector.at(LabelVectorIndex(row, col)) = neighborLabelSet.at(0);
-		} else {
+		}
+		else {
 			int mergeLabel = neighborLabelSet.at(0);
 			for (int maskIndex = neighborLabelSet.size() - 1; maskIndex > 0; maskIndex--) {
 				for (int labelIndex = 0; labelIndex < _binaryImage.rows * _binaryImage.cols; labelIndex++) {
@@ -220,13 +211,13 @@ public:
 		}
 	}
 
-	// ¥H8³s³q¼Ğ°Oª«¥ó
+	// ä»¥8é€£é€šæ¨™è¨˜ç‰©ä»¶
 	void LabelingBy8() {
 		InitLabelingData();
 		int labelNumber = 1;
 		cout << "==" << endl;
-		for (int row = 0; row < _labelingImage.rows; row++) {
-			for (int col = 0; col < _labelingImage.cols; col++) {
+		for (int row = 0; row < _labelImage.rows; row++) {
+			for (int col = 0; col < _labelImage.cols; col++) {
 				if (_labelVector.at(LabelVectorIndex(row, col)) != 0) {
 					LabelPixelBy8Neighbor(row, col, labelNumber);
 				}
@@ -234,9 +225,12 @@ public:
 		}
 		_component = _labelSet.size();
 		LabelColorImage();
+		cout << _name << " with 8-neighbor has " << _component << " objects" << endl;
+		imshow(_name + " 8-neighbor labeled", _labelImage);
+		imwrite(LABELED_FOLDER + "8-neighbor_" + _name, _labelImage);
 	}
 
-	// ¹ï¤G­È¤Æ¹Ï¹³¿±µÈ iteration ¦¸
+	// å°äºŒå€¼åŒ–åœ–åƒè†¨è„¹ iteration æ¬¡
 	void DilationBinaryImage(int iteration) {
 		uchar* binaryPtr;
 		for (int repeat = 0; repeat < iteration; ++repeat) {
@@ -252,7 +246,7 @@ public:
 		}
 	}
 
-	// ¹ï¤G­È¤Æ¹Ï¹³«I»k iteration ¦¸
+	// å°äºŒå€¼åŒ–åœ–åƒä¾µè• iteration æ¬¡
 	void ErosionBinaryImage(int iteration) {
 		uchar* binaryPtr;
 		for (int repeat = 0; repeat < iteration; ++repeat) {
@@ -268,7 +262,7 @@ public:
 		}
 	}
 
-	// ¥Î3x3¨÷¿n§PÂ_¬O§_­×§ï¾Fªñªº¹³¯ÀÂI
+	// ç”¨3x3å·ç©åˆ¤æ–·æ˜¯å¦ä¿®æ”¹é„°è¿‘çš„åƒç´ é»
 	void ConvolutionReconstruct(int row, int col, int value) {
 		int labelMark = (value == 0) ? MARK_BLACK : MARK_WHITE;
 		for (int neighborRow = -1; neighborRow <= 1; ++neighborRow) {
@@ -284,11 +278,9 @@ public:
 		}
 	}
 
-	void LabelColorImage() {
+	void SetColorLabelMap() {
 		set<vector<uchar>> colorSet;
-		int colorCount = 0;
 		int max = 255, min = 0;
-		set<int> labelSet = _labelSet;
 		srand(time(0));
 		for (int labelNumber : _labelSet) {
 			bool isInColorSet = false;
@@ -302,22 +294,22 @@ public:
 			} while (isInColorSet);
 			colorSet.insert(bufferColor);
 			_colorLabelMap[labelNumber] = bufferColor;
-
 		}
-		for (int row = 0; row < _labelingImage.rows; row++) {
-			for (int col = 0; col < _labelingImage.cols; col++) {
+	}
+
+	void LabelColorImage() {
+		SetColorLabelMap();
+		uchar* labelImagePtr;
+		for (int row = 0; row < _labelImage.rows; row++) {
+			labelImagePtr = _labelImage.ptr<uchar>(row);
+			for (int col = 0; col < _labelImage.cols; col++) {
 				int labelCode = _labelVector.at(LabelVectorIndex(row, col));
-				if (labelCode == 0) {
-					_labelingImage.at<Vec3b>(row, col) = Vec3b(0, 0, 0);
-				}
-				else {
-					vector<uchar> colorDecode = _colorLabelMap[labelCode];
-					_labelingImage.at<Vec3b>(row, col) = Vec3b(colorDecode.at(0), colorDecode.at(1), colorDecode.at(2));
+				vector<uchar> colorDecode = _colorLabelMap[labelCode];
+				for (int bgr = 0; bgr < 3; bgr++) {
+					*labelImagePtr++ = (labelCode != 0) ? colorDecode.at(bgr) : 0;
 				}
 			}
 		}
-		imshow(_name + " labeled", _labelingImage);
-		imwrite(LABELED_FOLDER + _name, _labelingImage);
 	}
 };
 
@@ -348,28 +340,13 @@ bool isInVector(const vector<int>& v, int target) {
 
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
-	vector<int> values = { 0,1,0,1 };
-	vector<int> maskLabels;
-
-	for (auto value : values) {
-		if (value != 0 && !isInVector(maskLabels, value)) {
-			maskLabels.push_back(value);
-		}
-	}
-
-	for (auto value : maskLabels) {
-		cout << value << ", ";
-	}
-	cout << endl;
-	cout << maskLabels.size();
-	return 0;
 	vector<string> folderList = { "../Image/Source/", "../Image/Binary/" };
 	vector<ImageInfo> imageInfoList;
-	imageInfoList.push_back(ImageInfo("1.png", 119, "erosion", 1));
+	imageInfoList.push_back(ImageInfo("1.png", 119, "opening", 5, 4));
 	imageInfoList.push_back(ImageInfo("2.png", 221, "dilation", 1));
 	imageInfoList.push_back(ImageInfo("3.png", 85, "closing", 4, 5));
-	imageInfoList.push_back(ImageInfo("4.png", 227, "orginal"));
-	int debug = 3;
+	imageInfoList.push_back(ImageInfo("4.png", 228, "orginal"));
+	int debug = 4 - 1;
 	for (int i = debug; i <= debug; ++i) {
 	//for (int i = 0; i < imageInfoList.size(); i++) {
 		ImageInfo imageInfo = imageInfoList.at(i);
@@ -378,7 +355,6 @@ int main() {
 		labelImage.GetBinaryImage(imageInfo.BinaryThreshold);
 		labelImage.ReconstructBinaryImage(imageInfo.RestructMode, imageInfo.RestructArg1, imageInfo.RestructArg2);
 		labelImage.LabelingBy4();
-		labelImage.PrintComponentAmount();
 	}
 	cout << "[Main] All image processing complete." << endl;
 	waitKey();
