@@ -1,4 +1,4 @@
-﻿#include<opencv2/opencv.hpp>
+#include<opencv2/opencv.hpp>
 #include <ppl.h>
 #include<time.h> 
 
