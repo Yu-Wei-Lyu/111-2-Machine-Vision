@@ -1,4 +1,4 @@
-#include<opencv2/opencv.hpp>
+ï»¿#include<opencv2/opencv.hpp>
 #include<time.h> 
 #include<cmath>
 
@@ -19,14 +19,14 @@ private:
 	int _splitAreaCols;
 
 public:
-	// Ãş§Oªì©l¤Æ
+	// é¡åˆ¥åˆå§‹åŒ–
 	QuadTreeImage(Mat image, string name) {
 		_name = name;
 		_image = image;
 		Initialize();
 	}
 
-	// Ãş§Oªì©l¤Æ
+	// é¡åˆ¥åˆå§‹åŒ–
 	void Initialize() {
 		int height = _image.rows, width = _image.cols;
 		_grayImage = Mat(height, width, CV_8UC1);
@@ -34,7 +34,7 @@ public:
 		_resultImage = Mat(height, width, CV_8UC1, 255);
 	}
 
-	// ³]©w¦Ç¶¥¤Æ¹Ï¹³
+	// è¨­å®šç°éšåŒ–åœ–åƒ
 	void SetGrayScaleImage() {
 		const uchar* imagePtr;
 		uchar* gray;
@@ -49,7 +49,7 @@ public:
 		//imshow(_name + " gray", _grayImage);
 	}
 
-	// ¨ÌªùÂe­È³]©w¤G­È¤Æ¼v¹³
+	// ä¾é–€æª»å€¼è¨­å®šäºŒå€¼åŒ–å½±åƒ
 	void GetBinaryImage(const int& threshold) {
 		SetGrayScaleImage();
 		const uchar* imagePtr;
@@ -67,12 +67,18 @@ public:
 
 	void GetQuadTreeLayerBy(int value) {
 		_resultImage = Mat(_image.rows, _image.cols, CV_8UC1, 255);
-		re(value, Point2i(0, 0), Point2i(_image.rows, _image.cols));
+		RecursiveQuadTree(value, Point2i(0, 0), Point2i(_image.rows, _image.cols));
+		size_t dot_pos = _name.rfind('.');
+		// è·å–ç‚¹å·å‰çš„å­å­—ç¬¦ä¸²
+		string substring1 = _name.substr(0, dot_pos);
+
+		// è·å–åŒ…å«ç‚¹å·çš„å­å­—ç¬¦ä¸²
+		string substring2 = _name.substr(dot_pos);
 		imshow(_name + " " + to_string(value) + " layer", _resultImage);
 		imwrite(QUADTREE_FOLDER + to_string(value) + "_layer_" + _name, _resultImage);
 	}
 
-	// §PÂ_2x2¹³¯À¬O§_¦P¦â
+	// åˆ¤æ–·2x2åƒç´ æ˜¯å¦åŒè‰²
 	uchar GetMergeColor(const vector<uchar> pixels) {
 		int average = 0;
 		for (const uchar& pixel : pixels) {
@@ -82,7 +88,7 @@ public:
 		return (average == COLOR_BLACK || average == COLOR_WHITE) ? average : COLOR_GRAY;
 	}
 
-	void re(int count, Point2i pointBegin, Point2i pointEnd) {
+	void RecursiveQuadTree(int treeHeight, Point2i pointBegin, Point2i pointEnd) {
 		vector<uchar> pixels;
 		const uchar* binaryPtr;
 		for (int x = pointBegin.x; x < pointEnd.x; x++) {
@@ -93,7 +99,7 @@ public:
 			}
 		}
 		uchar mergedColor = this->GetMergeColor(pixels);
-		if (mergedColor == COLOR_BLACK || mergedColor == COLOR_WHITE || count == 0) {
+		if (mergedColor == COLOR_BLACK || mergedColor == COLOR_WHITE || treeHeight == 0) {
 			uchar* resultPtr;
 			for (int x = pointBegin.x; x < pointEnd.x; x++) {
 				resultPtr = _resultImage.ptr<uchar>(x);
@@ -103,16 +109,17 @@ public:
 				}
 			}
 		}
-		if (mergedColor == COLOR_GRAY && count != 0) {
+		if (mergedColor == COLOR_GRAY && treeHeight != 0) {
 			int midX = (pointBegin.x + pointEnd.x) / 2, midY = (pointBegin.y + pointEnd.y) / 2;
-			re(count - 1, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
-			re(count - 1, Point2i(midX, pointBegin.y), Point2i(pointEnd.x, midY));
-			re(count - 1, Point2i(pointBegin.x, midY), Point2i(midX, pointEnd.y));
-			re(count - 1, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
+			treeHeight -= 1;
+			RecursiveQuadTree(treeHeight, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
+			RecursiveQuadTree(treeHeight, Point2i(midX, pointBegin.y), Point2i(pointEnd.x, midY));
+			RecursiveQuadTree(treeHeight, Point2i(pointBegin.x, midY), Point2i(midX, pointEnd.y));
+			RecursiveQuadTree(treeHeight, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
 		}
 	}
 
-	// ¤@ºû¦Ü¤Gºû¦L®g³B²z _labelVector ©Ò¥Î
+	// ä¸€ç¶­è‡³äºŒç¶­å°å°„è™•ç† _labelVector æ‰€ç”¨
 	int LabelVectorIndex(int i, int j) {
 		return i * _image.cols + j;
 	}
@@ -132,7 +139,7 @@ public:
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 
-	// ³]©w¦U¹Ï¹³³B²z°Ñ¼Æ
+	// è¨­å®šå„åœ–åƒè™•ç†åƒæ•¸
 	vector<ImageInfo> imageInfoList{ 
 		ImageInfo("1.png", 135), 
 		ImageInfo("2.png", 245), 
@@ -141,7 +148,7 @@ int main() {
 	};
 
 	//vector<ImageInfo> imageInfoList{ ImageInfo("3.png", 155) };
-	// °õ¦æ¦U¹Ï¹³³B²z
+	// åŸ·è¡Œå„åœ–åƒè™•ç†
 	for (ImageInfo& imageInfo : imageInfoList) {
 		Mat image = imread("../Image/Source/" + imageInfo.Name);
 		cv::waitKey();

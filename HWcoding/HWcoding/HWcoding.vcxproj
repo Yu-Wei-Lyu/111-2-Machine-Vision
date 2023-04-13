@@ -22,7 +22,7 @@
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{84766ee5-3ded-4bde-9ab8-92ef97aeddd1}</ProjectGuid>
-    <RootNamespace>HW1</RootNamespace>
+    <RootNamespace>HWcoding</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>HWcoding</ProjectName>
   </PropertyGroup>
