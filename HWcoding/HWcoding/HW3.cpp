@@ -12,36 +12,36 @@ using namespace cv;
 class QuadTreeImage {
 private:
 	const string BINARY_FOLDER = "../Image/Binary/", QUADTREE_FOLDER = "../Image/QuadTree/";
-	Mat _image, _grayImage, _binaryImage, _resultImage;
+	Mat _image, _grayImage, _binaryImage, _quadTreeImage;
 	string _name;
+	int _imageRows, _imageCols;
 	int _layer;
-	int _splitAreaRows;
-	int _splitAreaCols;
-
+	
 public:
 	// 類別初始化
 	QuadTreeImage(Mat image, string name) {
 		_name = name;
 		_image = image;
-		Initialize();
+		initialize();
 	}
 
 	// 類別初始化
-	void Initialize() {
-		int height = _image.rows, width = _image.cols;
-		_grayImage = Mat(height, width, CV_8UC1);
-		_binaryImage = Mat(height, width, CV_8UC1);
-		_resultImage = Mat(height, width, CV_8UC1, 255);
+	void initialize() {
+		_imageRows = _image.rows;
+		_imageCols = _image.cols;
+		_grayImage = Mat(_imageRows, _imageCols, CV_8UC1);
+		_binaryImage = Mat(_imageRows, _imageCols, CV_8UC1);
+		_quadTreeImage = Mat(_imageRows, _imageCols, CV_8UC1, COLOR_GRAY);
 	}
 
 	// 設定灰階化圖像
-	void SetGrayScaleImage() {
+	void updateGrayScaleImage() {
 		const uchar* imagePtr;
 		uchar* gray;
-		for (int row = 0; row < _image.rows; ++row) {
+		for (int row = 0; row < _imageRows; ++row) {
 			imagePtr = _image.ptr<uchar>(row);
 			gray = _grayImage.ptr<uchar>(row);
-			for (int col = 0; col < _image.cols; ++col) {
+			for (int col = 0; col < _imageCols; ++col) {
 				uchar blue = *imagePtr++, green = *imagePtr++, red = *imagePtr++;
 				*gray++ = (0.3 * red) + (0.59 * green) + (0.11 * blue);
 			}
@@ -50,14 +50,14 @@ public:
 	}
 
 	// 依門檻值設定二值化影像
-	void GetBinaryImage(const int& threshold) {
-		SetGrayScaleImage();
+	void updateBinaryImage(const int& threshold) {
+		updateGrayScaleImage();
 		const uchar* imagePtr;
 		uchar* binary;
-		for (int row = 0; row < _grayImage.rows; ++row) {
+		for (int row = 0; row < _imageRows; ++row) {
 			imagePtr = _grayImage.ptr<uchar>(row);
 			binary = _binaryImage.ptr<uchar>(row);
-			for (int col = 0; col < _grayImage.cols; ++col) {
+			for (int col = 0; col < _imageCols; ++col) {
 				*binary++ = (*imagePtr++ >= threshold) ? 255 : 0;
 			}
 		}
@@ -65,21 +65,21 @@ public:
 		imwrite(BINARY_FOLDER + _name, _binaryImage);
 	}
 
-	void GetQuadTreeLayerBy(int value) {
-		_resultImage = Mat(_image.rows, _image.cols, CV_8UC1, 255);
-		RecursiveQuadTree(value, Point2i(0, 0), Point2i(_image.rows, _image.cols));
-		size_t dot_pos = _name.rfind('.');
-		// 获取点号前的子字符串
-		string substring1 = _name.substr(0, dot_pos);
-
-		// 获取包含点号的子字符串
-		string substring2 = _name.substr(dot_pos);
-		imshow(_name + " " + to_string(value) + " layer", _resultImage);
-		imwrite(QUADTREE_FOLDER + to_string(value) + "_layer_" + _name, _resultImage);
+	void updateQuadTreeImage(int layer) {
+		_layer = layer;
+		_quadTreeImage = Mat(_imageRows, _imageCols, CV_8UC1, 255);
+		updateQuadTreeRecursively(layer, Point2i(0, 0), Point2i(_imageRows, _imageCols));
 	}
 
-	// 判斷2x2像素是否同色
-	uchar GetMergeColor(const vector<uchar> pixels) {
+	void saveQuadTreeImage() {
+		size_t dot_pos = _name.rfind('.');
+		string fileLayerName = _name.substr(0, dot_pos) + "(Layer_" + to_string(_layer) + ")" + _name.substr(dot_pos);
+		imshow(fileLayerName, _quadTreeImage);
+		imwrite(QUADTREE_FOLDER + fileLayerName, _quadTreeImage);
+	}
+
+	// 判斷2x2像素是否同色 並回傳白、灰或黑
+	uchar getMergeColor(const vector<uchar> pixels) {
 		int average = 0;
 		for (const uchar& pixel : pixels) {
 			average += pixel;
@@ -88,40 +88,46 @@ public:
 		return (average == COLOR_BLACK || average == COLOR_WHITE) ? average : COLOR_GRAY;
 	}
 
-	void RecursiveQuadTree(int treeHeight, Point2i pointBegin, Point2i pointEnd) {
+	// 取得特定範圍的所有二階值
+	vector<uchar> getBinaryImageValueList(const Point2i& pointBegin, const Point2i& pointEnd) {
 		vector<uchar> pixels;
 		const uchar* binaryPtr;
 		for (int x = pointBegin.x; x < pointEnd.x; x++) {
-			binaryPtr = _binaryImage.ptr<uchar>(x);
-			binaryPtr += pointBegin.y;
+			binaryPtr = _binaryImage.ptr<uchar>(x) + pointBegin.y;
 			for (int y = pointBegin.y; y < pointEnd.y; y++) {
 				pixels.push_back(*binaryPtr++);
 			}
 		}
-		uchar mergedColor = this->GetMergeColor(pixels);
-		if (mergedColor == COLOR_BLACK || mergedColor == COLOR_WHITE || treeHeight == 0) {
-			uchar* resultPtr;
-			for (int x = pointBegin.x; x < pointEnd.x; x++) {
-				resultPtr = _resultImage.ptr<uchar>(x);
-				resultPtr += pointBegin.y;
-				for (int y = pointBegin.y; y < pointEnd.y; y++) {
-					*resultPtr++ = mergedColor;
-				}
+		return pixels;
+	}
+
+
+	void updateQuadTreeImage(const Point2i& pointBegin, const Point2i& pointEnd, const uchar& color) {
+		uchar* resultPtr;
+		for (int x = pointBegin.x; x < pointEnd.x; x++) {
+			resultPtr = _quadTreeImage.ptr<uchar>(x);
+			resultPtr += pointBegin.y;
+			for (int y = pointBegin.y; y < pointEnd.y; y++) {
+				*resultPtr++ = color;
 			}
-		}
-		if (mergedColor == COLOR_GRAY && treeHeight != 0) {
-			int midX = (pointBegin.x + pointEnd.x) / 2, midY = (pointBegin.y + pointEnd.y) / 2;
-			treeHeight -= 1;
-			RecursiveQuadTree(treeHeight, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
-			RecursiveQuadTree(treeHeight, Point2i(midX, pointBegin.y), Point2i(pointEnd.x, midY));
-			RecursiveQuadTree(treeHeight, Point2i(pointBegin.x, midY), Point2i(midX, pointEnd.y));
-			RecursiveQuadTree(treeHeight, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
 		}
 	}
 
-	// 一維至二維印射處理 _labelVector 所用
-	int LabelVectorIndex(int i, int j) {
-		return i * _image.cols + j;
+	// 用遞迴方式創造指定 Layer 的 QuadTree 並儲存結果圖像
+	void updateQuadTreeRecursively(int treeHeight, const Point2i pointBegin, const Point2i pointEnd) {
+		vector<uchar> pixels = this->getBinaryImageValueList(pointBegin, pointEnd);
+		uchar mergedColor = this->getMergeColor(pixels);
+		if (mergedColor == COLOR_BLACK || mergedColor == COLOR_WHITE || treeHeight == 0) {
+			this->updateQuadTreeImage(pointBegin, pointEnd, mergedColor);
+		}
+		if (mergedColor == COLOR_GRAY && treeHeight != 0) {
+			int midX = (pointBegin.x + pointEnd.x) / 2, midY = (pointBegin.y + pointEnd.y) / 2;
+			--treeHeight;
+			updateQuadTreeRecursively(treeHeight, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
+			updateQuadTreeRecursively(treeHeight, Point2i(midX, pointBegin.y), Point2i(pointEnd.x, midY));
+			updateQuadTreeRecursively(treeHeight, Point2i(pointBegin.x, midY), Point2i(midX, pointEnd.y));
+			updateQuadTreeRecursively(treeHeight, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
+		}
 	}
 };
 
@@ -151,13 +157,12 @@ int main() {
 	// 執行各圖像處理
 	for (ImageInfo& imageInfo : imageInfoList) {
 		Mat image = imread("../Image/Source/" + imageInfo.Name);
-		cv::waitKey();
 		QuadTreeImage quadTreeImage = QuadTreeImage(image, imageInfo.Name);
-		quadTreeImage.GetBinaryImage(imageInfo.BinaryThreshold);
+		quadTreeImage.updateBinaryImage(imageInfo.BinaryThreshold);
 		int layerTotal = log2(image.rows);
 		for (int i = 1; i <= layerTotal; i++) {
-			quadTreeImage.GetQuadTreeLayerBy(i);
-			cv::waitKey();
+			quadTreeImage.updateQuadTreeImage(i);
+			quadTreeImage.saveQuadTreeImage();
 		}
 	}
 	cout << "[Main] All image processing complete." << endl;
