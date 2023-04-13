@@ -2,14 +2,21 @@
 #include <ppl.h>
 #include<time.h> 
 
+#define COLOR_BLACK 0
+#define COLOR_GRAY 128
+#define COLOR_WHITE 255
+
 using namespace std;
 using namespace cv;
 
 class QuadTreeImage {
 private:
 	const string BINARY_FOLDER = "../Image/Binary/";
-	Mat _image, _grayImage, _binaryImage;
+	Mat _image, _grayImage, _binaryImage, _resultImage;
 	string _name;
+	int _layer;
+	int _splitAreaRows;
+	int _splitAreaCols;
 
 public:
 	// 類別初始化
@@ -24,6 +31,7 @@ public:
 		int height = _image.rows, width = _image.cols;
 		_grayImage = Mat(height, width, CV_8UC1);
 		_binaryImage = Mat(height, width, CV_8UC1);
+		_resultImage = Mat(height, width, CV_8UC1, 255);
 	}
 
 	// 設定灰階化圖像
@@ -57,12 +65,47 @@ public:
 		imwrite(BINARY_FOLDER + _name, _binaryImage);
 	}
 
-	// 判斷 value 是否在 vector 中
-	bool isInVector(const vector<int>& v, int value) {
-		for (const int& e : v) {
-			if (e == value) return true;
+	void GetQuadTreeLayerBy(int value) {
+		re(value, Point2i(0, 0), Point2i(_image.rows, _image.cols));
+		imshow("result", _resultImage);
+	}
+
+	// 判斷2x2像素是否同色
+	uchar GetMergeColor(const vector<uchar> pixels) {
+		int average = 0;
+		for (const uchar& pixel : pixels) {
+			average += pixel;
 		}
-		return false;
+		average /= pixels.size();
+		return (average == COLOR_BLACK || average == COLOR_WHITE) ? average : COLOR_GRAY;
+	}
+
+	void re(int count, Point2i pointBegin, Point2i pointEnd) {
+		vector<uchar> pixels;
+		const uchar* binaryPtr;
+		for (int x = pointBegin.x; x < pointEnd.x; x++) {
+			binaryPtr = _binaryImage.ptr<uchar>(x);
+			for (int y = pointBegin.y; y < pointEnd.y; y++) {
+				pixels.push_back(*binaryPtr++);
+			}
+		}
+		uchar mergedColor = this->GetMergeColor(pixels);
+		if (mergedColor == COLOR_BLACK || mergedColor == COLOR_WHITE) {
+			uchar* resultPtr;
+			for (int x = pointBegin.x; x < pointEnd.x; x++) {
+				resultPtr = _resultImage.ptr<uchar>(x);
+				for (int y = pointBegin.y; y < pointEnd.y; y++) {
+					*resultPtr++ = mergedColor;
+				}
+			}
+		}
+		if (mergedColor == COLOR_GRAY && count != 0) {
+			int midX = (pointBegin.x + pointEnd.x) / 2, midY = (pointBegin.y + pointEnd.y) / 2;
+			re(count - 1, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
+			re(count - 1, Point2i(midX, pointBegin.y), Point2i(pointEnd.x, pointEnd.y));
+			re(count - 1, Point2i(pointBegin.x, midY), Point2i(midX, midY));
+			re(count - 1, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
+		}
 	}
 
 	// 一維至二維印射處理 _labelVector 所用
@@ -86,18 +129,20 @@ int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 
 	// 設定各圖像處理參數
-	vector<ImageInfo> imageInfoList{ 
-		ImageInfo("1.png", 135), 
-		ImageInfo("2.png", 245), 
-		ImageInfo("3.png", 155),
-		ImageInfo("4.png", 254) 
-	};
+	//vector<ImageInfo> imageInfoList{ 
+	//	ImageInfo("1.png", 135), 
+	//	ImageInfo("2.png", 245), 
+	//	ImageInfo("3.png", 155),
+	//	ImageInfo("4.png", 254) 
+	//};
 
+	vector<ImageInfo> imageInfoList{ ImageInfo("1.png", 135) };
 	// 執行各圖像處理
 	for (ImageInfo& imageInfo : imageInfoList) {
 		Mat image = imread("../Image/Source/" + imageInfo.Name);
 		QuadTreeImage quadTreeImage = QuadTreeImage(image, imageInfo.Name);
-		quadTreeImage.GetBinaryImage(imageInfo.BinaryThreshold);
+		//quadTreeImage.GetBinaryImage(imageInfo.BinaryThreshold);
+		quadTreeImage.GetQuadTreeLayerBy(1);
 	}
 	cout << "[Main] All image processing complete." << endl;
 	cv::waitKey();
