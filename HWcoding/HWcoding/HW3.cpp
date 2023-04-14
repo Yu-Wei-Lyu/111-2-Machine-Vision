@@ -65,29 +65,6 @@ public:
 		imwrite(BINARY_FOLDER + _name, _binaryImage);
 	}
 
-	void updateQuadTreeImage(int layer) {
-		_layer = layer;
-		_quadTreeImage = Mat(_imageRows, _imageCols, CV_8UC1, 255);
-		updateQuadTreeRecursively(layer, Point2i(0, 0), Point2i(_imageRows, _imageCols));
-	}
-
-	void saveQuadTreeImage() {
-		size_t dot_pos = _name.rfind('.');
-		string fileLayerName = _name.substr(0, dot_pos) + "(Layer_" + to_string(_layer) + ")" + _name.substr(dot_pos);
-		imshow(fileLayerName, _quadTreeImage);
-		imwrite(QUADTREE_FOLDER + fileLayerName, _quadTreeImage);
-	}
-
-	// 判斷2x2像素是否同色 並回傳白、灰或黑
-	uchar getMergeColor(const vector<uchar> pixels) {
-		int average = 0;
-		for (const uchar& pixel : pixels) {
-			average += pixel;
-		}
-		average /= pixels.size();
-		return (average == COLOR_BLACK || average == COLOR_WHITE) ? average : COLOR_GRAY;
-	}
-
 	// 取得特定範圍的所有二階值
 	vector<uchar> getBinaryImageValueList(const Point2i& pointBegin, const Point2i& pointEnd) {
 		vector<uchar> pixels;
@@ -101,7 +78,17 @@ public:
 		return pixels;
 	}
 
+	// 判斷2x2像素是否同色 並回傳白、灰或黑
+	uchar getMergeColor(const vector<uchar> pixels) {
+		int average = 0;
+		for (const uchar& pixel : pixels) {
+			average += pixel;
+		}
+		average /= pixels.size();
+		return (average == COLOR_BLACK || average == COLOR_WHITE) ? average : COLOR_GRAY;
+	}
 
+	// 更新 Quad tree image 部分區塊
 	void updateQuadTreeImage(const Point2i& pointBegin, const Point2i& pointEnd, const uchar& color) {
 		uchar* resultPtr;
 		for (int x = pointBegin.x; x < pointEnd.x; x++) {
@@ -129,6 +116,21 @@ public:
 			updateQuadTreeRecursively(treeHeight, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
 		}
 	}
+
+	// 以指定 Layer 數更新 Quad tree image
+	void updateQuadTreeImage(int layer) {
+		_layer = layer;
+		_quadTreeImage = Mat(_imageRows, _imageCols, CV_8UC1, 255);
+		updateQuadTreeRecursively(layer, Point2i(0, 0), Point2i(_imageRows, _imageCols));
+	}
+
+	// 儲存並顯示 Quad tree image
+	void saveQuadTreeImage() {
+		size_t dot_pos = _name.rfind('.');
+		string fileLayerName = _name.substr(0, dot_pos) + "(Layer_" + to_string(_layer) + ")" + _name.substr(dot_pos);
+		imshow(fileLayerName, _quadTreeImage);
+		imwrite(QUADTREE_FOLDER + fileLayerName, _quadTreeImage);
+	}
 };
 
 class ImageInfo {
@@ -150,10 +152,10 @@ int main() {
 		ImageInfo("1.png", 135), 
 		ImageInfo("2.png", 245), 
 		ImageInfo("3.png", 155),
-		ImageInfo("4.png", 254) 
+		ImageInfo("4.png", 254),
+		
 	};
 
-	//vector<ImageInfo> imageInfoList{ ImageInfo("3.png", 155) };
 	// 執行各圖像處理
 	for (ImageInfo& imageInfo : imageInfoList) {
 		Mat image = imread("../Image/Source/" + imageInfo.Name);
