@@ -16,7 +16,7 @@ private:
 	string _name;
 	int _imageRows, _imageCols;
 	int _layer;
-
+	
 public:
 	// 類別初始化
 	QuadTreeImage(Mat image, string name) {
@@ -110,7 +110,7 @@ public:
 			int midX = (pointBegin.x + pointEnd.x) / 2, midY = (pointBegin.y + pointEnd.y) / 2;
 			--treeHeight;
 			if (pointEnd.x - pointBegin.x > 1 && pointEnd.y - pointBegin.y > 1)
-				updateQuadTreeRecursively(treeHeight, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
+			updateQuadTreeRecursively(treeHeight, Point2i(pointBegin.x, pointBegin.y), Point2i(midX, midY));
 			updateQuadTreeRecursively(treeHeight, Point2i(midX, pointBegin.y), Point2i(pointEnd.x, midY));
 			updateQuadTreeRecursively(treeHeight, Point2i(pointBegin.x, midY), Point2i(midX, pointEnd.y));
 			updateQuadTreeRecursively(treeHeight, Point2i(midX, midY), Point2i(pointEnd.x, pointEnd.y));
@@ -148,13 +148,13 @@ int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 
 	// 設定各圖像處理參數
-	vector<ImageInfo> imageInfoList{
-		ImageInfo("1.png", 135),
-		ImageInfo("2.png", 245),
+	vector<ImageInfo> imageInfoList{ 
+		ImageInfo("1.png", 135), 
+		ImageInfo("2.png", 245), 
 		ImageInfo("3.png", 155),
 		ImageInfo("4.png", 254)
 	};
-
+	 
 	// 執行各圖像處理
 	for (ImageInfo& imageInfo : imageInfoList) {
 		Mat image = imread("../Image/Source/" + imageInfo.Name);
