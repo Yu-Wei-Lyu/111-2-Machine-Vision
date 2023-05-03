@@ -101,10 +101,10 @@ public:
 		}
 		//cout << "total = " << kernelIndex << endl;
 		//double newWeightTotal = 0;
-		for (double& weight : _gaussianKernel) {
-			weight /= weightTotal;
-			//newWeightTotal += weight;
-		}
+		//for (double& weight : _gaussianKernel) {
+		//	weight /= weightTotal;
+		//	//newWeightTotal += weight;
+		//}
 		//kernelIndex = 0;
 		//for (int windowRow = start; windowRow <= end; ++windowRow) {
 		//	for (int windowCol = start; windowCol <= end; ++windowCol) {
@@ -169,20 +169,24 @@ public:
 	}
 };
 
+
+
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 
 	// 設定各圖像處理參數
 	vector<string> imageFileList{ "House256_noise.png", "Lena_gray.png", "Mandrill_gray.png", "Peppers_noise.png"};
-	vector<string> filterModeList{ "mean", "median", "gaussian" };
-	vector<int> kernelSizeList{ 3, 7, 3, 7, 5 };
+	//vector<string> filterModeList{ "mean", "median", "gaussian" };
+	//vector<int> kernelSizeList{ 3, 7, 3, 7, 5 };
+	vector<string> filterModeList{ "gaussian" };
+	vector<int> kernelSizeList{ 5 };
 	//vector<string> imageFileList{ "House256_noise.png" };
 	// 執行各圖像處理
 	for (const string& sourceImageFile : imageFileList) {
 		const Mat sourceImage = imread("../Image/Source/" + sourceImageFile);
-		imshow("Source image " + sourceImageFile, sourceImage);
+		//imshow("Source image " + sourceImageFile, sourceImage);
 		FilterImage filter = FilterImage(sourceImage, sourceImageFile);
-		filter.setGaussianKernel(5, 0.707);
+		filter.setGaussianKernel(5, 0.809);
 		for (const string& filterMode : filterModeList) {
 			for (const int& kernelSize : kernelSizeList) {
 				Mat resultImage = Mat(sourceImage.rows, sourceImage.cols, CV_8UC1);
@@ -191,16 +195,15 @@ int main() {
 				filter.updateGrayScaleImage(sampleImage);
 				for (int repeat = 1; repeat <= 7; ++repeat) {
 					filter.getFilterImageByMode(sampleImage, resultImage, filterMode, 3);
-					
-					string saveFilePath = "../" + filter.FileName + "/";
-					string saveFileName = filterMode + to_string(kernelSize) + "x" + to_string(kernelSize) + "_" + sourceImageFile;
-					//imshow(saveFileName, resultImage);
+					string saveFilePath = "../Image/" + filter.FileName + "/";
+					string saveFileName = filter.FileName + "(" + filterMode + to_string(kernelSize) + "x" + to_string(kernelSize) + "r" + to_string(repeat) + ")" + filter.FileExt;
 					imwrite(saveFilePath + saveFileName, resultImage);
 					resultImage.copyTo(sampleImage);
 				}
 			}
 		}
 	}
+	//imshow("FINESH", Mat(1024, 1024, CV_8UC1));
 	cout << "[Main] All image processing complete." << endl;
 	cv::waitKey();
 	cv::destroyAllWindows();
