@@ -2,8 +2,6 @@
 #include<time.h> 
 #include<cmath>
 
-#define PI 3.14159
-
 using namespace std;
 using namespace cv;
 
@@ -15,8 +13,11 @@ private:
 
 public:
 	string FileName, FileExt;
+
+	FilterImage() {	}
+
 	// 類別初始化
-	FilterImage(Mat image, string file) {
+	void create(Mat image, string file) {
 		size_t dot_pos = file.rfind('.');
 		FileName = file.substr(0, dot_pos);
 		FileExt = file.substr(dot_pos);
@@ -37,13 +38,6 @@ public:
 				}
 			}
 		}
-		//int index = 0;
-		//for (int i = 0; i < kernelSize; i++) {
-		//	for (int j = 0; j < kernelSize; j++) {
-		//		cout << (int)pixelList.at(index++) << "\t";
-		//	}
-		//	cout << endl;
-		//}
 		return pixelList;
 	}
 
@@ -93,26 +87,14 @@ public:
 				double rowSquare = pow(windowRow, 2), colSquare = pow(windowCol, 2);
 				double exponent = -(rowSquare + colSquare) / (2 * pow(standardDeviation, 2));
 				double weight = exp(exponent);
-				//cout << weight  << "\t";
 				_gaussianKernel.at(kernelIndex++) = weight;
 				weightTotal += weight;
 			}
-			//cout << endl;
 		}
-		//cout << "total = " << kernelIndex << endl;
-		//double newWeightTotal = 0;
-		//for (double& weight : _gaussianKernel) {
-		//	weight /= weightTotal;
-		//	//newWeightTotal += weight;
-		//}
-		//kernelIndex = 0;
-		//for (int windowRow = start; windowRow <= end; ++windowRow) {
-		//	for (int windowCol = start; windowCol <= end; ++windowCol) {
-		//		cout << _gaussianKernel.at(kernelIndex++) << "\t";
-		//	}
-		//	cout << endl;
-		//}
-		//cout << "new total = " << newWeightTotal << endl;
+		double newWeightTotal = 0;
+		for (double& weight : _gaussianKernel) {
+			weight /= weightTotal;
+		}
 	}
 
 	// 取得卷積範圍內的 Gaussian 值
@@ -154,57 +136,63 @@ public:
 			}
 		}
 	}
-
-	// 取得Mean filter image
-	void getMeanFilterImage(Mat& source, Mat& dest, int kernelSize) {
-		dest = Mat(source.rows, source.cols, CV_8UC1);
-		uchar* destPtr;
-		for (int row = 0; row < source.rows; ++row) {
-			destPtr = dest.ptr<uchar>(row);
-			for (int col = 0; col < source.cols; ++col) {
-				vector<uchar> pixelList = getConvolutionList(source, row, col, kernelSize);
-				*destPtr++ = getMeanValue(pixelList);
-			}
-		}
-	}
 };
 
+class FilterKernel {
+public:
+	string Mode;
+	vector<int> KernelSize;
 
+	FilterKernel(string mode, vector<int> size) {
+		this->Mode = mode;
+		this->KernelSize = size;
+	}
+};
 
 int main() {
 	cout << "[Main] Start to processing images, please wait..." << endl;
 
 	// 設定各圖像處理參數
-	vector<string> imageFileList{ "House256_noise.png", "Lena_gray.png", "Mandrill_gray.png", "Peppers_noise.png"};
-	//vector<string> filterModeList{ "mean", "median", "gaussian" };
-	//vector<int> kernelSizeList{ 3, 7, 3, 7, 5 };
-	vector<string> filterModeList{ "gaussian" };
-	vector<int> kernelSizeList{ 5 };
-	//vector<string> imageFileList{ "House256_noise.png" };
+	vector<string> imageFileList{ 
+		"House256_noise.png", 
+		"Lena_gray.png", 
+		"Mandrill_gray.png", 
+		"Peppers_noise.png"
+	};
+	vector<FilterKernel> filterKernel{
+		FilterKernel("mean", { 3, 7 }),
+		FilterKernel("median", { 3, 7 }),
+		FilterKernel("gaussian", { 5 })
+	};
+	double processing = 0, previousPercent = 0, currentPercent = 0, processTotal = 140;
 	// 執行各圖像處理
+	FilterImage filter;
+	filter.setGaussianKernel(5, 1.414);
 	for (const string& sourceImageFile : imageFileList) {
 		const Mat sourceImage = imread("../Image/Source/" + sourceImageFile);
-		//imshow("Source image " + sourceImageFile, sourceImage);
-		FilterImage filter = FilterImage(sourceImage, sourceImageFile);
-		filter.setGaussianKernel(5, 0.809);
-		for (const string& filterMode : filterModeList) {
-			for (const int& kernelSize : kernelSizeList) {
+		filter.create(sourceImage, sourceImageFile);
+		for (const FilterKernel& fk : filterKernel) {
+			for (const int& kernelSize : fk.KernelSize) {
 				Mat resultImage = Mat(sourceImage.rows, sourceImage.cols, CV_8UC1);
 				Mat sampleImage;
 				sourceImage.copyTo(sampleImage);
 				filter.updateGrayScaleImage(sampleImage);
 				for (int repeat = 1; repeat <= 7; ++repeat) {
-					filter.getFilterImageByMode(sampleImage, resultImage, filterMode, 3);
+					filter.getFilterImageByMode(sampleImage, resultImage, fk.Mode, kernelSize);
 					string saveFilePath = "../Image/" + filter.FileName + "/";
-					string saveFileName = filter.FileName + "(" + filterMode + to_string(kernelSize) + "x" + to_string(kernelSize) + "r" + to_string(repeat) + ")" + filter.FileExt;
+					string saveFileName = filter.FileName + "(" + fk.Mode + to_string(kernelSize) + "x" + to_string(kernelSize) + "r" + to_string(repeat) + ")" + filter.FileExt;
 					imwrite(saveFilePath + saveFileName, resultImage);
 					resultImage.copyTo(sampleImage);
+					currentPercent = round((++processing / processTotal) * 100);
+					if (previousPercent != currentPercent) {
+						cout << "\r" << "Processing : " << currentPercent << "%";
+					}
+					previousPercent = processing;
 				}
 			}
 		}
 	}
-	//imshow("FINESH", Mat(1024, 1024, CV_8UC1));
-	cout << "[Main] All image processing complete." << endl;
+	cout << "\n[Main] All image processing complete." << endl;
 	cv::waitKey();
 	cv::destroyAllWindows();
 	return 0;
