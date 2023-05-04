@@ -7,22 +7,9 @@ using namespace cv;
 
 class FilterImage {
 private:
-	const string IMAGE_FOLDER = "../Image/";
 	vector<double> _gaussianKernel;
 	uchar (FilterImage::* _getValueFunc)(vector<uchar>) = nullptr;
-
-public:
-	string FileName, FileExt;
-
-	FilterImage() {	}
-
-	// 類別初始化
-	void create(Mat image, string file) {
-		size_t dot_pos = file.rfind('.');
-		FileName = file.substr(0, dot_pos);
-		FileExt = file.substr(dot_pos);
-	}
-
+	
 	// 用kernelSize*kernelSize卷積回傳鄰近的像素點
 	vector<uchar> getConvolutionList(const Mat& source, int row, int col, int kernelSize) {
 		vector<uchar> pixelList(kernelSize * kernelSize);
@@ -33,7 +20,8 @@ public:
 				int nRow = row + windowRow, nCol = col + windowCol;
 				if (nRow >= 0 && nRow < source.rows && nCol >= 0 && nCol < source.cols) {
 					pixelList.at(pixelListIndex++) = source.at<uchar>(nRow, nCol);
-				} else {
+				}
+				else {
 					pixelList.at(pixelListIndex++) = 0;
 				}
 			}
@@ -76,6 +64,27 @@ public:
 		return pixelList.at(medianIndex);
 	}
 
+	// 取得卷積範圍內的 Gaussian 值
+	uchar getGaussianValue(vector<uchar> pixelList) {
+		double value = 0;
+		for (int pixelIndex = 0; pixelIndex < pixelList.size(); ++pixelIndex) {
+			value += (double)pixelList.at(pixelIndex) * (double)_gaussianKernel.at(pixelIndex);
+		}
+		return (uchar)round(value);
+	}
+
+public:
+	string FileName, FileExt;
+
+	FilterImage() {	}
+
+	// 類別初始化
+	void transformFile(string file) {
+		size_t dot_pos = file.rfind('.');
+		FileName = file.substr(0, dot_pos);
+		FileExt = file.substr(dot_pos);
+	}
+
 	// 依照給定的 kernel 大小和標準化參數給出 kernel權重值
 	void setGaussianKernel(int kernelSize, double standardDeviation) {
 		_gaussianKernel = vector<double>(kernelSize * kernelSize);
@@ -97,15 +106,6 @@ public:
 		}
 	}
 
-	// 取得卷積範圍內的 Gaussian 值
-	uchar getGaussianValue(vector<uchar> pixelList) {
-		double value = 0;
-		for (int pixelIndex = 0; pixelIndex < pixelList.size(); ++pixelIndex) {
-			value += (double)pixelList.at(pixelIndex) * (double)_gaussianKernel.at(pixelIndex);
-		}
-		return (uchar)round(value);
-	}
-
 	// 設定灰階化圖像
 	void updateGrayScaleImage(Mat& source) {
 		Mat grayImage = Mat(source.rows, source.cols, CV_8UC1);
@@ -122,6 +122,7 @@ public:
 		grayImage.copyTo(source);
 	}
 
+	// 取得特定方法過濾圖像
 	void getFilterImageByMode(Mat& source, Mat& dest, const string& mode, int kernelSize) {
 		if (mode == "mean") _getValueFunc = &FilterImage::getMeanValue;
 		else if (mode == "median") _getValueFunc = &FilterImage::getMedianValue;
@@ -164,13 +165,14 @@ int main() {
 		FilterKernel("median", { 3, 7 }),
 		FilterKernel("gaussian", { 5 })
 	};
-	double processing = 0, previousPercent = 0, currentPercent = 0, processTotal = 140;
+	
 	// 執行各圖像處理
+	double processing = 0, previousPercent = 0, currentPercent = 0, processTotal = 140;
 	FilterImage filter;
 	filter.setGaussianKernel(5, 1.414);
 	for (const string& sourceImageFile : imageFileList) {
 		const Mat sourceImage = imread("../Image/Source/" + sourceImageFile);
-		filter.create(sourceImage, sourceImageFile);
+		filter.transformFile(sourceImageFile);
 		for (const FilterKernel& fk : filterKernel) {
 			for (const int& kernelSize : fk.KernelSize) {
 				Mat resultImage = Mat(sourceImage.rows, sourceImage.cols, CV_8UC1);
