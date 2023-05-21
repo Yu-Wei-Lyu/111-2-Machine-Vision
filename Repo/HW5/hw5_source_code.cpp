@@ -111,7 +111,6 @@ private:
 	vector<int> _sobelHorizontal{ -1, -2, -1, 0, 0, 0, 1, 2, 1 };
 	vector<int> _laplacianKernelOne{ 0, 1, 0, 1, -4, 1, 0, 1, 0 };
 	vector<int> _laplacianKernelTwo{ 1, 1, 1, 1, -8, 1, 1, 1, 1 };
-	vector<double> _gaussianKernel;
 	int rowIndex, colIndex;
 	
 	// 用 3*3 卷積回傳鄰近的像素點
@@ -132,6 +131,12 @@ private:
 		return pixelList;
 	}
 
+	// 回傳是否超過邊界值的布林值
+	bool isOverThreshold(const int& threshold, const int& value1, const int& value2) {
+		int tangent = abs(value1) + abs(value2);
+		return tangent >= threshold;
+	}
+
 	// 取得目前計算 edge 方法的單點值
 	int getEdgeValue(const Mat& source, const vector<uchar>& pixelList, const vector<int>& kernel) {
 		const int start = -KERNEL_SIZE / 2;
@@ -148,12 +153,6 @@ private:
 			}
 		}
 		return edgeValue;
-	}
-
-	// 回傳是否超過邊界值的布林值
-	bool isOverThreshold(const int& threshold, const int& value1, const int& value2) {
-		int tangent = abs(value1) + abs(value2);
-		return tangent >= threshold;
 	}
 
 	// 輸出 edge 偵測影像
