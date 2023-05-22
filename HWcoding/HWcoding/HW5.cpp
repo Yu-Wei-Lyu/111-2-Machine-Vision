@@ -58,6 +58,21 @@ public:
 		colIndex = 0;
 	}
 
+	// 設定灰階化圖像
+	void updateGrayScaleImage(const Mat& source, Mat& dest) {
+		dest.create(source.rows, source.cols, CV_8UC1);
+		const uchar* imagePtr;
+		uchar* gray;
+		for (int row = 0; row < source.rows; ++row) {
+			imagePtr = source.ptr<uchar>(row);
+			gray = dest.ptr<uchar>(row);
+			for (int col = 0; col < source.cols; ++col) {
+				uchar blue = *imagePtr++, green = *imagePtr++, red = *imagePtr++;
+				*gray++ = (0.3 * red) + (0.59 * green) + (0.11 * blue);
+			}
+		}
+	}
+
 	// 依照給定的 kernel 大小和標準化參數給出 kernel 權重值
 	void setGaussianKernel(double standardDeviation) {
 		_gaussianKernel = vector<double>(KERNEL_SIZE * KERNEL_SIZE);
@@ -111,9 +126,8 @@ private:
 	vector<int> _sobelHorizontal{ -1, -2, -1, 0, 0, 0, 1, 2, 1 };
 	vector<int> _laplacianKernelOne{ 0, 1, 0, 1, -4, 1, 0, 1, 0 };
 	vector<int> _laplacianKernelTwo{ 1, 1, 1, 1, -8, 1, 1, 1, 1 };
-	vector<double> _gaussianKernel;
 	int rowIndex, colIndex;
-	
+
 	// 用 3*3 卷積回傳鄰近的像素點
 	vector<uchar> getConvolutionList(const Mat& source) {
 		vector<uchar> pixelList(KERNEL_SIZE * KERNEL_SIZE);
@@ -124,7 +138,8 @@ private:
 				int nRow = rowIndex + windowRow, nCol = colIndex + windowCol;
 				if (nRow >= 0 && nRow < source.rows && nCol >= 0 && nCol < source.cols) {
 					pixelList.at(kernelIndex++) = source.at<uchar>(nRow, nCol);
-				} else {
+				}
+				else {
 					pixelList.at(kernelIndex++) = 0;
 				}
 			}
@@ -181,21 +196,6 @@ public:
 		colIndex = 0;
 	}
 
-	// 設定灰階化圖像
-	void updateGrayScaleImage(const Mat& source, Mat& dest) {
-		dest.create(source.rows, source.cols, CV_8UC1);
-		const uchar* imagePtr;
-		uchar* gray;
-		for (int row = 0; row < source.rows; ++row) {
-			imagePtr = source.ptr<uchar>(row);
-			gray = dest.ptr<uchar>(row);
-			for (int col = 0; col < source.cols; ++col) {
-				uchar blue = *imagePtr++, green = *imagePtr++, red = *imagePtr++;
-				*gray++ = (0.3 * red) + (0.59 * green) + (0.11 * blue);
-			}
-		}
-	}
-
 	// 取得特定方法過濾圖像
 	void getEdgeImageByMethod(const Mat& source, Mat& dest, EdgeOperatorName edgeOperator, int threshold) {
 		_kernelPtr = nullptr;
@@ -246,7 +246,7 @@ int main() {
 
 	// 設定各圖像處理參數
 	vector<ImageInfo> imageList{
-		ImageInfo("House512.png", 60, 80, 10, 25 ),
+		ImageInfo("House512.png", 60, 80, 10, 25),
 		ImageInfo("Lena.png", 80, 95, 10, 25),
 		ImageInfo("Mandrill.png", 90, 110, 8, 25)
 	};
@@ -257,11 +257,9 @@ int main() {
 	filter.setGaussianKernel(1.414);
 	for (ImageInfo& image : imageList) {
 		const Mat sourceImage = imread("../Image/Source/" + image.FileName + image.FileExt);
-		Mat grayImage;
-		edgeDetector.updateGrayScaleImage(sourceImage, grayImage);
+		Mat grayImage, gaussianImage, resultImage;
+		filter.updateGrayScaleImage(sourceImage, grayImage);
 		imshow(image.FileName, grayImage);
-		Mat resultImage;
-		Mat gaussianImage, laplacianImage;
 		filter.getGaussianFilterImageByDeep(grayImage, gaussianImage, 2);
 		edgeDetector.getEdgeImageByMethod(gaussianImage, resultImage, EdgeOperatorName::PREWITT_VERTICAL, image.PrewittThreshold);
 		//imshow(image.FileName + " prewitt vertical", resultImage);
